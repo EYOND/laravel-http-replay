@@ -16,7 +16,7 @@
         }
     ],
     "require": {
-        "php": "^8.4",
+        "php": "^8.3",
         "spatie/laravel-package-tools": "^1.16",
         "illuminate/contracts": "^11.0||^12.0"
     },
@@ -35,8 +35,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Pikant\\LaravelEasyHttpFake\\": "src/",
-            "Pikant\\LaravelEasyHttpFake\\Database\\Factories\\": "database/factories/"
+            "Pikant\\LaravelEasyHttpFake\\": "src/"
         }
     },
     "autoload-dev": {

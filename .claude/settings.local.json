@@ -1,6 +1,10 @@
 {
   "permissions": {
     "allow": [
+      "Bash(composer test:*)",
+      "Bash(composer analyse:*)",
+      "Bash(composer format:*)",
+      "Bash(composer dump-autoload:*)"
     ]
   },
   "plansDirectory": ".claude/plans"

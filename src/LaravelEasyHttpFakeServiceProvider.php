@@ -2,24 +2,30 @@
 
 namespace Pikant\LaravelEasyHttpFake;
 
+use Illuminate\Http\Client\Factory;
+use Pikant\LaravelEasyHttpFake\Commands\ReplayFreshCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use Pikant\LaravelEasyHttpFake\Commands\LaravelEasyHttpFakeCommand;
 
 class LaravelEasyHttpFakeServiceProvider extends PackageServiceProvider
 {
     public function configurePackage(Package $package): void
     {
-        /*
-         * This class is a Package Service Provider
-         *
-         * More info: https://github.com/spatie/laravel-package-tools
-         */
         $package
             ->name('laravel-easy-http-fake')
             ->hasConfigFile()
-            ->hasViews()
-            ->hasMigration('create_laravel_easy_http_fake_table')
-            ->hasCommand(LaravelEasyHttpFakeCommand::class);
+            ->hasCommand(ReplayFreshCommand::class);
+    }
+
+    public function packageBooted(): void
+    {
+        $this->registerHttpMacro();
+    }
+
+    protected function registerHttpMacro(): void
+    {
+        Factory::macro('replay', function (): ReplayBuilder {
+            return new ReplayBuilder;
+        });
     }
 }
