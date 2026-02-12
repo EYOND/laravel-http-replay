@@ -1,12 +1,12 @@
 <?php
 
-namespace VendorName\Skeleton\Commands;
+namespace Pikant\LaravelEasyHttpFake\Commands;
 
 use Illuminate\Console\Command;
 
-class SkeletonCommand extends Command
+class LaravelEasyHttpFakeCommand extends Command
 {
-    public $signature = 'skeleton';
+    public $signature = 'laravel-easy-http-fake';
 
     public $description = 'My command';
 

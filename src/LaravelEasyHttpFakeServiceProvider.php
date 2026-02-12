@@ -1,12 +1,12 @@
 <?php
 
-namespace VendorName\Skeleton;
+namespace Pikant\LaravelEasyHttpFake;
 
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use VendorName\Skeleton\Commands\SkeletonCommand;
+use Pikant\LaravelEasyHttpFake\Commands\LaravelEasyHttpFakeCommand;
 
-class SkeletonServiceProvider extends PackageServiceProvider
+class LaravelEasyHttpFakeServiceProvider extends PackageServiceProvider
 {
     public function configurePackage(Package $package): void
     {
@@ -16,10 +16,10 @@ class SkeletonServiceProvider extends PackageServiceProvider
          * More info: https://github.com/spatie/laravel-package-tools
          */
         $package
-            ->name('skeleton')
+            ->name('laravel-easy-http-fake')
             ->hasConfigFile()
             ->hasViews()
-            ->hasMigration('create_migration_table_name_table')
-            ->hasCommand(SkeletonCommand::class);
+            ->hasMigration('create_laravel_easy_http_fake_table')
+            ->hasCommand(LaravelEasyHttpFakeCommand::class);
     }
 }

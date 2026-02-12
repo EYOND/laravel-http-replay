@@ -1,17 +1,17 @@
 {
-    "name": ":vendor_slug/:package_slug",
-    "description": ":package_description",
+    "name": "pikant/laravel-easy-http-fake",
+    "description": "Package to easily store, use and renew HTTP fakes for Laravel",
     "keywords": [
-        ":vendor_name",
+        "pikant",
         "laravel",
-        ":package_slug"
+        "laravel-easy-http-fake"
     ],
-    "homepage": "https://github.com/:vendor_slug/:package_slug",
+    "homepage": "https://github.com/pikant/laravel-easy-http-fake",
     "license": "MIT",
     "authors": [
         {
-            "name": ":author_name",
-            "email": "author@domain.com",
+            "name": "Patrick Körber",
+            "email": "p.koerber@eyond.io",
             "role": "Developer"
         }
     ],
@@ -35,13 +35,13 @@
     },
     "autoload": {
         "psr-4": {
-            "VendorName\\Skeleton\\": "src/",
-            "VendorName\\Skeleton\\Database\\Factories\\": "database/factories/"
+            "Pikant\\LaravelEasyHttpFake\\": "src/",
+            "Pikant\\LaravelEasyHttpFake\\Database\\Factories\\": "database/factories/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "VendorName\\Skeleton\\Tests\\": "tests/",
+            "Pikant\\LaravelEasyHttpFake\\Tests\\": "tests/",
             "Workbench\\App\\": "workbench/app/"
         }
     },
@@ -63,10 +63,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "VendorName\\Skeleton\\SkeletonServiceProvider"
+                "Pikant\\LaravelEasyHttpFake\\LaravelEasyHttpFakeServiceProvider"
             ],
             "aliases": {
-                "Skeleton": "VendorName\\Skeleton\\Facades\\Skeleton"
+                "LaravelEasyHttpFake": "Pikant\\LaravelEasyHttpFake\\Facades\\LaravelEasyHttpFake"
             }
         }
     },
