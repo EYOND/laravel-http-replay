@@ -1,4 +1,6 @@
-# Package to easily store, use and renew HTTP fakes for Laravel
+# Laravel easy HTTP fake
+
+Package to easily store, use and renew HTTP fakes for Laravel
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/pikant/laravel-easy-http-fake.svg?style=flat-square)](https://packagist.org/packages/pikant/laravel-easy-http-fake)
 [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/pikant/laravel-easy-http-fake/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/pikant/laravel-easy-http-fake/actions?query=workflow%3Arun-tests+branch%3Amain)
