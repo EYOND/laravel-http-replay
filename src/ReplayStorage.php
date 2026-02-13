@@ -19,7 +19,6 @@ class ReplayStorage
         $filename = $testSuite->getFilename();
         $description = $testSuite->getDescription();
 
-        // Get relative path from project root tests/ directory
         $testsDir = base_path('tests');
         $relative = str_replace($testsDir.DIRECTORY_SEPARATOR, '', $filename);
         $relative = str_replace('.php', '', $relative);

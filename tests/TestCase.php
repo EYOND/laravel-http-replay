@@ -13,4 +13,11 @@ class TestCase extends Orchestra
             LaravelEasyHttpFakeServiceProvider::class,
         ];
     }
+
+    public function getEnvironmentSetUp($app)
+    {
+        // Point base_path() to the package root so that ReplayStorage
+        // resolves paths correctly (Testbench defaults to its own skeleton).
+        $app->setBasePath(dirname(__DIR__));
+    }
 }

@@ -3,12 +3,8 @@
 use Illuminate\Support\Facades\File;
 
 beforeEach(function () {
-    $this->replayDir = base_path('tests/.http-replays');
-
-    // Ensure clean state
-    if (File::isDirectory($this->replayDir)) {
-        File::deleteDirectory($this->replayDir);
-    }
+    $this->replayDir = sys_get_temp_dir().'/http-replays-cmd-'.uniqid();
+    config()->set('easy-http-fake.storage_path', $this->replayDir);
 });
 
 afterEach(function () {
