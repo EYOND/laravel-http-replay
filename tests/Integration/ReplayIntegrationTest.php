@@ -239,10 +239,6 @@ it('stores responses in the expected JSON format', function () {
 
 describe('preventStrayRequests', function () {
     it('replays from shared without making real requests', function () {
-        Http::replay()->storeAs('jsonplaceholder');
-        Http::get('https://jsonplaceholder.typicode.com/posts/1');
-
-        // Reset Http state for a clean second call
         Http::preventStrayRequests();
         Http::replay()->from('jsonplaceholder');
 
