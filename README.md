@@ -259,21 +259,19 @@ REPLAY_FRESH=true vendor/bin/pest
 
 Prevent tests from accidentally recording new fakes in CI by enabling bail mode. When active, tests will **fail** if Replay attempts to write a new file.
 
-```php
-// config/http-replay.php
-'bail' => env('REPLAY_BAIL', false),
-```
-
 ```bash
+# Pest flag (recommended)
+vendor/bin/pest --replay-bail
+
+# Or via environment variable
 REPLAY_BAIL=true vendor/bin/pest
 ```
 
-Or in `phpunit.xml`:
+You can also set it permanently in your config:
 
-```xml
-<php>
-    <env name="REPLAY_BAIL" value="true"/>
-</php>
+```php
+// config/http-replay.php
+'bail' => env('REPLAY_BAIL', false),
 ```
 
 ### Incomplete Test Marking
