@@ -1,311 +1,375 @@
-# Implementierungsplan — `pikant/laravel-easy-http-fake`
+# Plan: Feedback-Runde — Laravel Http Replay
 
 ## Context
 
-Das Package vereinfacht HTTP Faking in Laravel/Pest Tests: Responses von echten Calls auf Disk speichern, bei folgenden Runs automatisch wiederverwenden, bei Bedarf erneuern. Ähnlich wie Pest's `toMatchSnapshot()`, aber für HTTP-Calls.
-
-**Entscheidungen:**
-- Entry Point: `Http::replay()` (Macro auf Factory)
-- Stil: Fluent Builder
-- Attribute Key: `replay` (`Http::withAttributes(['replay' => 'products'])`)
-- Nur Pest-Support
-- Same-URL: `matchBy()` + `withAttributes()` beide unterstützt
-
----
-
-## Definitive API
-
-### Basics
-
-```php
-// Simpelster Fall — records on first run, replays after
-it('fetches products', function () {
-    Http::replay();
-
-    $products = app(ShopifyService::class)->getProducts();
-    expect($products)->toHaveCount(10);
-});
-```
-
-### Same-URL Disambiguation (GraphQL etc.)
-
-```php
-it('fetches products and orders via GraphQL', function () {
-    Http::replay();
-
-    // Explizit per withAttributes
-    $products = Http::withAttributes(['replay' => 'products'])
-        ->post('https://shopify.com/graphql', ['query' => '{products{...}}']);
-    $orders = Http::withAttributes(['replay' => 'orders'])
-        ->post('https://shopify.com/graphql', ['query' => '{orders{...}}']);
-});
-
-// Oder: automatisch per Body-Hash (kein withAttributes nötig)
-it('auto-disambiguates by body', function () {
-    Http::replay()->matchBy('url', 'body');
-
-    Http::post('https://shopify.com/graphql', ['query' => '{products{...}}']);
-    Http::post('https://shopify.com/graphql', ['query' => '{orders{...}}']);
-});
-```
-
-### Shared Fakes
-
-```php
-// Aufnehmen in shared Ordner
-it('records shared shopify fakes', function () {
-    Http::replay()->storeAs('shopify');
-    app(ShopifyService::class)->getProducts();
-});
-
-// Verwenden aus shared Ordner
-it('uses shared shopify fakes', function () {
-    Http::replay()->from('shopify');
-    $products = app(ShopifyService::class)->getProducts();
-    expect($products)->toHaveCount(10);
-});
-
-// In beforeEach für ganze Datei
-beforeEach(function () {
-    Http::replay()->from('shopify');
-});
-```
-
-### Mix: Recorded + statische Fakes
-
-```php
-Http::replay()
-    ->only(['shopify.com/*'])
-    ->fake([
-        'api.stripe.com/*' => Http::response(['ok' => true]),
-        'sentry.io/*' => Http::response([], 200),
-    ]);
-```
-
-### Renewal / Erneuerung
-
-```php
-// Fluent
-Http::replay()->fresh();                    // Alles neu für diesen Test
-Http::replay()->fresh('shopify.com/*');     // Nur bestimmte URLs
-Http::replay()->expireAfter(days: 7);      // Auto-Expire
-Http::replay()->from('shopify')->fresh();  // Shared Fakes erneuern
-
-// Artisan
-// php artisan replay:fresh
-// php artisan replay:fresh --test="it fetches products"
-// php artisan replay:fresh --file=tests/Feature/ShopifyTest.php
-// php artisan replay:fresh --url="shopify.com/*"
-// php artisan replay:fresh --shared=shopify
-
-// ENV für CI
-// REPLAY_FRESH=true vendor/bin/pest
-```
-
-### Komplexes Szenario
-
-```php
-it('complex shopify sync', function () {
-    Http::replay()
-        ->only(['shopify.com/*'])
-        ->matchBy('url', 'body')
-        ->expireAfter(days: 7)
-        ->fake([
-            'api.stripe.com/*' => Http::response(['ok' => true]),
-        ]);
-
-    $products = Http::withAttributes(['replay' => 'products'])
-        ->post('https://shopify.com/graphql', ['query' => '{products{...}}']);
-    $charge = app(StripeService::class)->charge(100);
-
-    expect($products->json())->toHaveKey('data.products');
-});
-```
+Basierend auf dem Praxis-Feedback in `feedback-replay.md` stehen 8 Änderungen an:
+1. Package umbenennen (laravel-easy-http-fake → laravel-http-replay)
+2. API-Naming anpassen (storeAs→storeIn, replay:fresh→replay:prune)
+3. ReplayNamer komplett neu — komposierbare Matcher
+4. Per-URL Konfiguration via `->for()->matchBy()`
+5. `Replay::get()` für einzelne shared Fakes in `Http::fake()`
+6. Bail on CI (Tests failen wenn Replay schreibt)
+7. Test als incomplete markieren wenn Replay schreibt
+8. Storage-Pfad → `tests/.laravel-http-replay`
 
 ---
 
-## File Storage
+## Phase 1: Package Rename
 
-```
-tests/.http-replays/
-├── _shared/                                    # Geteilte Fakes
-│   └── shopify/
-│       └── GET_shopify.com_api_products.json
-├── Feature/
-│   └── ShopifyTest/
-│       └── it_fetches_products/                # Auto-Name aus Pest Test
-│           ├── GET_shopify.com_api_products.json
-│           ├── products.json                   # via withAttributes(['replay' => 'products'])
-│           └── POST_shopify.com_graphql__a1b2c3.json  # via matchBy body hash
-```
+Namespace `Pikant\LaravelEasyHttpFake` → `Pikant\LaravelHttpReplay`. Facade wird zu `Replay`.
 
-Response-Datei Format:
-```json
+### Datei-Umbenennungen
+
+| Alt | Neu |
+|-----|-----|
+| `src/LaravelEasyHttpFake.php` | `src/LaravelHttpReplay.php` |
+| `src/LaravelEasyHttpFakeServiceProvider.php` | `src/LaravelHttpReplayServiceProvider.php` |
+| `src/Facades/LaravelEasyHttpFake.php` | `src/Facades/Replay.php` |
+| `config/easy-http-fake.php` | `config/http-replay.php` |
+
+### Globale Ersetzungen
+
+| Alt | Neu |
+|-----|-----|
+| `Pikant\LaravelEasyHttpFake` | `Pikant\LaravelHttpReplay` |
+| `LaravelEasyHttpFakeServiceProvider` | `LaravelHttpReplayServiceProvider` |
+| `LaravelEasyHttpFake` (Klasse) | `LaravelHttpReplay` |
+| `LaravelEasyHttpFake` (Facade) | `Replay` |
+| `config('easy-http-fake.` | `config('http-replay.` |
+| `'laravel-easy-http-fake'` (Package-Name) | `'laravel-http-replay'` |
+| `pikant/laravel-easy-http-fake` (Composer) | `pikant/laravel-http-replay` |
+
+### Betroffene Dateien (~20)
+- `composer.json` (name, autoload, extra.laravel)
+- Alle `src/*.php` (Namespace)
+- `src/Facades/Replay.php` (Klasse + Accessor)
+- `config/http-replay.php`
+- Alle `tests/*.php` (use-Statements, config-Keys)
+- `tests/Integration/ReplayIntegrationTest.php` (FQCN-Referenzen)
+- `README.md`, `CHANGELOG.md`, `CLAUDE.md`
+- `.github/ISSUE_TEMPLATE/config.yml`
+
+### Storage-Pfad
+- Default: `tests/.http-replays` → `tests/.laravel-http-replay`
+- Bestehende Replay-Dateien im Repo müssen verschoben werden
+- `.gitignore`-Eintrag anpassen falls vorhanden
+
+---
+
+## Phase 2: API-Naming
+
+Kleine Umbenennungen:
+
+| Alt | Neu | Dateien |
+|-----|-----|---------|
+| `->storeAs('name')` | `->storeIn('name')` | `ReplayBuilder.php`, Tests |
+| `replay:fresh` | `replay:prune` | `ReplayFreshCommand.php` → `ReplayPruneCommand.php`, ServiceProvider |
+
+---
+
+## Phase 3: ReplayNamer — Komposierbare Matcher
+
+### Neue Architektur
+
+Statt der aktuellen if-Leiter wird der Namer aus einzelnen Matchern zusammengesetzt. Jeder Matcher löst einen Teil des Dateinamens auf.
+
+**Neues Interface:** `src/Matchers/NameMatcher.php`
+```php
+interface NameMatcher
 {
-    "status": 200,
-    "headers": {"Content-Type": "application/json"},
-    "body": {"products": []},
-    "recorded_at": "2026-02-12T14:30:00Z",
-    "request": {
-        "method": "GET",
-        "url": "https://shopify.com/api/products",
-        "attributes": {"replay": "products"}
-    }
+    public function resolve(Request $request): ?string;
 }
 ```
 
+**Neue Matcher-Klassen** in `src/Matchers/`:
+
+| Matcher | Config-String | Beispiel-Output |
+|---------|--------------|-----------------|
+| `HttpMethodMatcher` | `http_method` | `GET` |
+| `SubdomainMatcher` | `subdomain` | `shop` (von shop.myshopify.com) |
+| `HostMatcher` | `host` | `shop_myshopify_com` |
+| `UrlMatcher` | `url` | `shop_myshopify_com_api_products` (ohne Schema) |
+| `HttpAttributeMatcher` | `http_attribute:key` | Wert von `$request->attributes()['key']`. Dot-Notation: `http_attribute:object.slug` |
+| `BodyHashMatcher` | `body_hash`, `body_hash:query`, `body_hash:query,variables.id` | `a1b2c3` (6-Zeichen Hash). Ohne Key = ganzer Body. Mit Keys = nur diese Felder. |
+| `ClosureMatcher` | `Closure` | Was die Closure zurückgibt (Array von Teilen) |
+
+### Matcher-Parsing in ReplayNamer
+
+```php
+// matchBy-Config: ['http_method', 'url', 'http_attribute:request_name']
+// → [HttpMethodMatcher, UrlMatcher, HttpAttributeMatcher('request_name')]
+
+public function fromRequest(Request $request, array $matchBy): string
+{
+    $parts = [];
+    foreach ($this->parseMatchers($matchBy) as $matcher) {
+        $resolved = $matcher->resolve($request);
+        if ($resolved !== null && $resolved !== '') {
+            $parts[] = $this->sanitize($resolved);
+        }
+    }
+    return implode('_', $parts) . '.json';
+}
+```
+
+**Leere Werte:** `resolve()` gibt `null` zurück → wird übersprungen → keine `___` im Dateinamen.
+
+### Default-Matcher
+
+Config `match_by` Default bleibt `['http_method', 'url']` (vorher `['url', 'method']` → umbenennen für Konsistenz mit neuen Matcher-Namen).
+
+### Closure-Matcher Signatur
+
+```php
+Http::replay()->matchBy(
+    'http_method',
+    fn(Request $r): array => [
+        $r->data()['operationName'] ?? 'unknown',
+        $r->data()['variables']['id'] ?? '',
+    ],
+);
+```
+
+Die Closure gibt ein `array` von Filename-Teilen zurück. Leere Strings werden übersprungen.
+
+### Backward Compatibility
+
+Die alten String-Werte `'url'`, `'method'`, `'body'` werden auf die neuen Matcher gemappt:
+- `'url'` → `UrlMatcher`
+- `'method'` → `HttpMethodMatcher`
+- `'body'` → `BodyHashMatcher` (ganzer Body)
+
+### Anpassungen in ReplayBuilder
+
+- `recordingKey()` muss die gleiche Matcher-Logik verwenden wie der Namer (damit pending recordings korrekt zugeordnet werden)
+- `getBaseFilename()` für Counter-Stripping bleibt unverändert
+
 ---
 
-## Technische Implementierung
+## Phase 4: Per-URL Konfiguration via `->for()->matchBy()`
 
-### Neue Klassen
+### API
 
-#### 1. `src/ReplayBuilder.php`
-Fluent Builder, zurückgegeben von `Http::replay()`. Sammelt Konfiguration und aktiviert Record/Replay.
-
-```
-Methoden:
-- matchBy(string ...$fields): self          # 'url', 'method', 'body', 'headers'
-- only(array $patterns): self               # Nur bestimmte URLs recorden
-- fake(array $stubs): self                  # Statische Fakes zusätzlich
-- from(string $name): self                  # Shared Fakes laden
-- storeAs(string $name): self               # In shared Ordner speichern
-- fresh(?string $pattern = null): self      # Fakes erneuern
-- expireAfter(int $days): self              # Auto-Expire
-```
-
-Am Ende der Konfiguration (via `__destruct` oder explizitem `->start()`) registriert der Builder:
-1. Vorhandene Fakes als `Http::fake()` Stubs
-2. Einen Recording-Callback für unbekannte Requests
-3. Einen `afterResponse`-Hook um neue Responses auf Disk zu schreiben
-
-#### 2. `src/ReplayStorage.php`
-Liest/schreibt Response-Dateien auf Disk.
-
-```
-Methoden:
-- getTestDirectory(): string                # Leitet Pfad aus Pest TestSuite ab
-- getSharedDirectory(string $name): string  # _shared/{name}/
-- findStoredResponses(string $dir): array   # Alle gespeicherten Responses laden
-- store(Request $request, Response $response, string $dir): void
-- deleteByPattern(string $pattern): void    # Für fresh/renewal
-- isExpired(string $file, int $days): bool  # Für expireAfter
-```
-
-#### 3. `src/ReplayNamer.php`
-Erzeugt Dateinamen aus Request-Daten.
-
-```
-Methoden:
-- fromRequest(Request $request): string     # GET_shopify.com_api_products.json
-- fromAttribute(string $name): string       # products.json
-- fromBodyHash(Request $request): string    # POST_shopify.com_graphql__a1b2c3.json
-```
-
-Naming-Strategie:
-- Hat der Request ein `replay` Attribute? → `{attribute_value}.json`
-- Ist `matchBy` mit 'body' aktiv? → `{METHOD}_{host}_{path}__{bodyHash}.json`
-- Default: `{METHOD}_{host}_{path}.json`
-- Bei Duplikaten: Counter wie Pest (`__2`, `__3`, etc.)
-
-#### 4. `src/ResponseSerializer.php`
-Serialisiert Laravel Response-Objekte zu/von JSON.
-
-```
-Methoden:
-- serialize(Request $request, Response $response): array
-- deserialize(array $data): Response        # Gibt Http::response() zurück
-```
-
-#### 5. `src/Commands/ReplayFreshCommand.php`
-Artisan Command zum Löschen von gespeicherten Fakes.
-
-```
-Optionen: --test, --file, --url, --shared
-Logik: Delegiert an ReplayStorage::deleteByPattern()
-```
-
-### Zu ändernde bestehende Dateien
-
-#### `src/LaravelEasyHttpFakeServiceProvider.php`
-- `boot()`: Macro `Http::replay()` auf `Factory` registrieren
-- Config, Migration, Views entfernen (nicht benötigt)
-- Command registrieren: `ReplayFreshCommand`
-
-#### `src/LaravelEasyHttpFake.php`
-- Wird zum Container/Facade-Accessor für Storage-Konfiguration (base path etc.)
-
-#### `src/Facades/LaravelEasyHttpFake.php`
-- Bleibt als Facade, ggf. umbenennen zu `Replay`
-
-#### `config/easy-http-fake.php`
 ```php
+Http::replay()
+    ->for('myshopify.com/*')->matchBy('url', 'http_attribute:request_name', 'http_attribute:request_id')
+    ->for('reybex.com/*')->matchBy('http_method', 'url');
+```
+
+### Implementierung in ReplayBuilder
+
+```php
+protected ?string $currentForPattern = null;
+
+/** @var array<string, list<string|Closure>> */
+protected array $perPatternMatchBy = [];
+
+public function for(string $pattern): self
+{
+    $this->currentForPattern = $pattern;
+    return $this;
+}
+
+public function matchBy(string|Closure ...$fields): self
+{
+    if ($this->currentForPattern !== null) {
+        $this->perPatternMatchBy[$this->currentForPattern] = array_values($fields);
+        $this->currentForPattern = null;
+    } else {
+        $this->matchByFields = array_values($fields);
+    }
+    return $this;
+}
+```
+
+### Matcher-Auflösung pro Request
+
+In `handleRequest()` und `handleResponseReceived()`:
+```php
+protected function resolveMatchBy(Request $request): array
+{
+    foreach ($this->perPatternMatchBy as $pattern => $matchBy) {
+        if (Str::is(Str::start($pattern, '*'), $request->url())) {
+            return $matchBy;
+        }
+    }
+    return $this->matchByFields; // Global default
+}
+```
+
+Der `ReplayNamer` bekommt die aufgelösten `matchBy`-Felder pro Request statt sie im Constructor zu setzen.
+
+---
+
+## Phase 5: `Replay::get()` Facade
+
+### API
+
+```php
+Http::fake([
+    'foo.com/posts/*' => Replay::get('fresh-test/GET_jsonplaceholder_typicode_com_posts_3.json'),
+]);
+```
+
+### Implementierung
+
+Die `Replay`-Facade (umbenannte `LaravelEasyHttpFake`) bekommt eine `get()`-Methode auf der Hauptklasse `LaravelHttpReplay`:
+
+```php
+// src/LaravelHttpReplay.php
+public function get(string $path): \GuzzleHttp\Promise\PromiseInterface
+{
+    $fullPath = $this->getStoragePath()
+        . DIRECTORY_SEPARATOR . '_shared'
+        . DIRECTORY_SEPARATOR . $path;
+
+    $content = File::get($fullPath);
+    $data = json_decode($content, true);
+
+    return (new ResponseSerializer)->deserialize($data);
+}
+```
+
+Sucht in `{storage_path}/_shared/{path}`. Gibt ein `PromiseInterface` zurück (kompatibel mit `Http::fake()`).
+
+---
+
+## Phase 6: Bail on CI
+
+### Konzept
+
+Wenn `REPLAY_BAIL=true` gesetzt ist, soll der Test **failen** wenn Replay versucht eine Datei zu schreiben. Das verhindert, dass in CI versehentlich neue Fakes angelegt werden.
+
+### Implementierung
+
+**Hinweis zu Pest CLI Flag:** Ein nativer `--replay-bail` Flag ist von einem Package aus nicht möglich — Pest erlaubt keine custom CLI-Optionen über Plugins. Stattdessen: Environment Variable + Config.
+
+**Config** (`config/http-replay.php`):
+```php
+'bail' => false, // In App-Config: env('REPLAY_BAIL', false)
+```
+
+**In ReplayBuilder.handleResponseReceived():**
+```php
+if (config('http-replay.bail', false)) {
+    throw new ReplayBailException(
+        "Http Replay attempted to write [$filename] but bail mode is active. "
+        . "Run tests locally to record new fakes."
+    );
+}
+```
+
+**Neue Exception:** `src/Exceptions/ReplayBailException.php` (extends `\RuntimeException`)
+
+**Anwendung in CI:**
+```bash
+REPLAY_BAIL=true vendor/bin/pest
+```
+
+Oder in `phpunit.xml`:
+```xml
+<php>
+    <env name="REPLAY_BAIL" value="true"/>
+</php>
+```
+
+---
+
+## Phase 7: Test als Incomplete markieren
+
+### Konzept
+
+Wenn Replay innerhalb eines Tests neue Daten schreibt, soll der Test als "incomplete" (gelb) markiert werden — genau wie bei `expect()->toMatchSnapshot()`.
+
+### Mechanismus (von Pest übernommen)
+
+Pest nutzt `TestSuite::getInstance()->registerSnapshotChange($message)`. Diese public Methode fügt eine Nachricht zum `$__snapshotChanges`-Array des Tests hinzu. Ein `#[PostCondition]`-Hook in Pest's `Testable`-Trait ruft danach `markTestIncomplete()` auf.
+
+**Wir piggybacen auf diesem Mechanismus.** In `ReplayBuilder.handleResponseReceived()` nach dem Schreiben:
+
+```php
+use Pest\TestSuite;
+
+// Nach erfolgreichem Speichern:
+if (class_exists(TestSuite::class)) {
+    TestSuite::getInstance()->registerSnapshotChange(
+        "Http replay recorded at [{$this->saveDirectory}/{$filename}]"
+    );
+}
+```
+
+Das ist alles — Pest's bestehender PostCondition-Hook erledigt den Rest. Der Test wird gelb mit der Nachricht wo die Datei gespeichert wurde.
+
+---
+
+## Phase 8: Config-Datei aktualisieren
+
+```php
+// config/http-replay.php
 return [
-    'storage_path' => 'tests/.http-replays',
-    'match_by' => ['url', 'method'],           // Default matching
-    'expire_after' => null,                     // Tage, null = nie
+    'storage_path' => 'tests/.laravel-http-replay',
+    'match_by' => ['http_method', 'url'],
+    'expire_after' => null,
+    'fresh' => false,
+    'bail' => false,
 ];
 ```
-
-#### `database/migrations/` → Löschen (kein DB nötig)
-
-### Kern-Mechanismus: Record vs. Replay
-
-```
-Http::replay() aufgerufen
-    │
-    ├─ ReplayStorage: Gibt es gespeicherte Fakes für diesen Test?
-    │   ├─ JA → Http::fake() mit gespeicherten Responses
-    │   │       Unbekannte Requests → echter Call → auf Disk speichern
-    │   └─ NEIN → Alle Requests durchlassen → aufnehmen → auf Disk speichern
-    │
-    └─ Nach dem Test: Neue Recordings auf Disk persistieren
-```
-
-Technisch nutzt der Builder `Http::fake($callback)` mit einer Closure die:
-1. Prüft ob ein gespeicherter Fake zum Request passt
-2. Wenn ja → Fake-Response zurückgibt
-3. Wenn nein → `null` zurückgibt (Laravel macht den echten Call)
-4. Per `Http::globalMiddleware()` oder Recording-Hook den echten Response abfängt und speichert
-
-### Test-Name Auflösung (Pest)
-
-Nutzt `Pest\TestSuite::getInstance()`:
-```php
-$filename = TestSuite::getInstance()->getFilename();    // /abs/path/tests/Feature/ShopifyTest.php
-$description = TestSuite::getInstance()->getDescription(); // it_fetches_products
-```
-
-Daraus wird: `tests/.http-replays/Feature/ShopifyTest/it_fetches_products/`
 
 ---
 
 ## Implementierungs-Reihenfolge
 
-1. **ReplayStorage + ReplayNamer** — File I/O und Naming-Logik
-2. **ResponseSerializer** — Response zu/von JSON
-3. **ReplayBuilder** — Fluent API + Http::fake() Integration
-4. **Service Provider** — Macro registrieren
-5. **ReplayFreshCommand** — Artisan Command
-6. **Config** — Konfigurationsdatei
-7. **Tests** — Für jeden Schritt
+1. **Package Rename** (Phase 1 + 2) — Sauberer Schnitt zuerst
+2. **Matcher-Architektur** (Phase 3) — NameMatcher Interface + alle Matcher-Klassen + ReplayNamer Refactoring
+3. **Per-URL Config** (Phase 4) — `for()->matchBy()` auf ReplayBuilder
+4. **Replay::get()** (Phase 5) — Methode auf Hauptklasse
+5. **Bail + Incomplete** (Phase 6 + 7) — ReplayBuilder-Hooks
+6. **Tests** für alle Phasen
+
+## Dateiübersicht
+
+### Neue Dateien
+- `src/Matchers/NameMatcher.php` (Interface)
+- `src/Matchers/HttpMethodMatcher.php`
+- `src/Matchers/SubdomainMatcher.php`
+- `src/Matchers/HostMatcher.php`
+- `src/Matchers/UrlMatcher.php`
+- `src/Matchers/HttpAttributeMatcher.php`
+- `src/Matchers/BodyHashMatcher.php`
+- `src/Matchers/ClosureMatcher.php`
+- `src/Exceptions/ReplayBailException.php`
+- Tests für alle neuen Matcher
+
+### Umbenannte Dateien
+- `src/LaravelEasyHttpFake.php` → `src/LaravelHttpReplay.php`
+- `src/LaravelEasyHttpFakeServiceProvider.php` → `src/LaravelHttpReplayServiceProvider.php`
+- `src/Facades/LaravelEasyHttpFake.php` → `src/Facades/Replay.php`
+- `src/Commands/ReplayFreshCommand.php` → `src/Commands/ReplayPruneCommand.php`
+- `config/easy-http-fake.php` → `config/http-replay.php`
+- `tests/.http-replays/` → `tests/.laravel-http-replay/`
+
+### Geänderte Dateien
+- `composer.json` (name, namespaces, aliases)
+- `src/ReplayBuilder.php` (for/matchBy, bail, incomplete, storeAs→storeIn)
+- `src/ReplayNamer.php` (komplett refactored — Matcher-basiert)
+- `src/ReplayStorage.php` (Namespace)
+- `src/ResponseSerializer.php` (Namespace)
+- Alle Test-Dateien (Namespaces, Config-Keys, API-Änderungen)
+- `README.md`, `CLAUDE.md`, `CHANGELOG.md`
 
 ---
 
 ## Verifikation
 
 ```bash
-# Unit Tests für Storage, Namer, Serializer
-composer test
+# Nach jedem Schritt:
+composer test                # Alle Tests grün
+composer analyse             # PHPStan level 5
+composer format              # Pint Formatting
 
-# Integration Test: Echter HTTP Call wird recorded
-# 1. Test mit Http::replay() und echtem Endpoint schreiben
-# 2. Erster Run: prüfen dass .http-replays/ Datei erstellt wird
-# 3. Zweiter Run: prüfen dass kein Netzwerk-Call stattfindet
-
-# Artisan Command testen
-php artisan replay:fresh --test="it fetches products"
-
-# PHPStan
-composer analyse
+# Integration testen:
+# 1. Tests laufen lassen → Replay-Dateien in tests/.laravel-http-replay/
+# 2. Nochmal laufen → kein Netzwerk, Dateien unverändert (git diff leer)
+# 3. REPLAY_BAIL=true vendor/bin/pest → Test failt wenn geschrieben wird
+# 4. Frischen Test schreiben → gelb/incomplete markiert
 ```

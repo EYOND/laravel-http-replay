@@ -7,7 +7,9 @@
       "Bash(composer dump-autoload:*)",
       "Bash(vendor/bin/pest:*)",
       "Bash(./vendor/bin/pest:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(ls:*)",
+      "Bash(xargs:*)"
     ]
   },
   "plansDirectory": ".claude/plans"
