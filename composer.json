@@ -67,6 +67,11 @@
             "aliases": {
                 "Replay": "Pikant\\LaravelHttpReplay\\Facades\\Replay"
             }
+        },
+        "pest": {
+            "plugins": [
+                "Pikant\\LaravelHttpReplay\\Plugins\\ReplayBailPlugin"
+            ]
         }
     },
     "minimum-stability": "dev",

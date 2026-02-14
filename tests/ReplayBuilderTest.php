@@ -222,7 +222,7 @@ it('supports for()->matchBy() per-URL configuration', function () {
     expect($prop->getValue($builder))->toHaveCount(2);
 });
 
-it('throws ReplayBailException when bail is active', function () {
+it('throws ReplayBailException when bail config is active', function () {
     config()->set('http-replay.bail', true);
 
     $dir = $this->tempDir.'/test';
@@ -244,4 +244,30 @@ it('throws ReplayBailException when bail is active', function () {
 
     $method = $reflection->getMethod('handleResponseReceived');
     $method->invoke($builder, $request, $response);
+})->throws(\Pikant\LaravelHttpReplay\Exceptions\ReplayBailException::class);
+
+it('throws ReplayBailException when --replay-bail flag sets SERVER var', function () {
+    $_SERVER['REPLAY_BAIL'] = 'true';
+
+    $dir = $this->tempDir.'/test';
+    File::ensureDirectoryExists($dir);
+
+    $builder = new ReplayBuilder($this->storage);
+
+    $reflection = new ReflectionClass($builder);
+    $reflection->getProperty('initialized')->setValue($builder, true);
+    $reflection->getProperty('loadDirectory')->setValue($builder, $dir);
+    $reflection->getProperty('saveDirectory')->setValue($builder, $dir);
+    $reflection->getProperty('pendingRecordings')->setValue($builder, ['GET:https://api.example.com/products' => 1]);
+
+    Http::fake(['api.example.com/*' => Http::response(['ok' => true])]);
+    Http::get('https://api.example.com/products');
+    [$request, $response] = Http::recorded()[0];
+
+    try {
+        $method = $reflection->getMethod('handleResponseReceived');
+        $method->invoke($builder, $request, $response);
+    } finally {
+        unset($_SERVER['REPLAY_BAIL']);
+    }
 })->throws(\Pikant\LaravelHttpReplay\Exceptions\ReplayBailException::class);

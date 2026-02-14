@@ -270,7 +270,7 @@ class ReplayBuilder
         $this->pendingRecordings[$key]--;
 
         // Bail mode — fail if attempting to write
-        if (config('http-replay.bail', false)) {
+        if ($this->shouldBail()) {
             $matchBy = $this->resolveMatchBy($request);
             $filename = $this->namer->fromRequest($request, $matchBy);
 
@@ -362,6 +362,15 @@ class ReplayBuilder
         }
 
         return $key;
+    }
+
+    /**
+     * Check if bail mode is active (via config or --replay-bail flag).
+     */
+    protected function shouldBail(): bool
+    {
+        return config('http-replay.bail', false)
+            || filter_var($_SERVER['REPLAY_BAIL'] ?? false, FILTER_VALIDATE_BOOLEAN);
     }
 
     /**
