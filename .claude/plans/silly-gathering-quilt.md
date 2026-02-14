@@ -242,14 +242,43 @@ Wenn `REPLAY_BAIL=true` gesetzt ist, soll der Test **failen** wenn Replay versuc
 
 ### Implementierung
 
-**Hinweis zu Pest CLI Flag:** Ein nativer `--replay-bail` Flag ist von einem Package aus nicht möglich — Pest erlaubt keine custom CLI-Optionen über Plugins. Stattdessen: Environment Variable + Config.
+Drei Wege zum Aktivieren — Pest CLI Flag, ENV oder Config:
 
-**Config** (`config/http-replay.php`):
+**1. Pest Plugin** (`src/Plugins/ReplayBailPlugin.php`):
+
+Pest erlaubt custom CLI-Flags über das `HandlesArguments`-Interface. Plugin-Registrierung via `composer.json`:
+
 ```php
-'bail' => false, // In App-Config: env('REPLAY_BAIL', false)
+class ReplayBailPlugin implements HandlesArguments
+{
+    use HandleArguments;
+
+    public function handleArguments(array $arguments): array
+    {
+        if ($this->hasArgument('--replay-bail', $arguments)) {
+            $arguments = $this->popArgument('--replay-bail', $arguments);
+            config()->set('http-replay.bail', true);
+        }
+        return $arguments;
+    }
+}
 ```
 
-**In ReplayBuilder.handleResponseReceived():**
+```json
+// composer.json
+"extra": {
+    "pest": {
+        "plugins": ["Pikant\\LaravelHttpReplay\\Plugins\\ReplayBailPlugin"]
+    }
+}
+```
+
+**2. Config** (`config/http-replay.php`):
+```php
+'bail' => env('REPLAY_BAIL', false),
+```
+
+**3. In ReplayBuilder.handleResponseReceived():**
 ```php
 if (config('http-replay.bail', false)) {
     throw new ReplayBailException(
@@ -261,16 +290,16 @@ if (config('http-replay.bail', false)) {
 
 **Neue Exception:** `src/Exceptions/ReplayBailException.php` (extends `\RuntimeException`)
 
-**Anwendung in CI:**
+**Anwendung in CI (alle drei Varianten):**
 ```bash
-REPLAY_BAIL=true vendor/bin/pest
-```
+# Pest Flag (bevorzugt)
+vendor/bin/pest --replay-bail
 
-Oder in `phpunit.xml`:
-```xml
-<php>
-    <env name="REPLAY_BAIL" value="true"/>
-</php>
+# Environment Variable
+REPLAY_BAIL=true vendor/bin/pest
+
+# phpunit.xml
+<php><env name="REPLAY_BAIL" value="true"/></php>
 ```
 
 ---
@@ -337,6 +366,7 @@ return [
 - `src/Matchers/HttpAttributeMatcher.php`
 - `src/Matchers/BodyHashMatcher.php`
 - `src/Matchers/ClosureMatcher.php`
+- `src/Plugins/ReplayBailPlugin.php` (Pest Plugin für --replay-bail)
 - `src/Exceptions/ReplayBailException.php`
 - Tests für alle neuen Matcher
 

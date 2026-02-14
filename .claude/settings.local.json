@@ -11,7 +11,8 @@
       "Bash(ls:*)",
       "Bash(xargs:*)",
       "Bash(./vendor/bin/phpstan analyse:*)",
-      "Bash(./vendor/bin/pint:*)"
+      "Bash(./vendor/bin/pint:*)",
+      "WebFetch(domain:pestphp.com)"
     ]
   },
   "plansDirectory": ".claude/plans"
