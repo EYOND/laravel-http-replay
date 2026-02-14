@@ -1,6 +1,6 @@
 <?php
 
-namespace Pikant\LaravelEasyHttpFake;
+namespace Pikant\LaravelHttpReplay;
 
 use Illuminate\Support\Facades\File;
 
@@ -128,7 +128,7 @@ class ReplayStorage
 
     protected function defaultBasePath(): string
     {
-        $configured = config('easy-http-fake.storage_path', 'tests/.http-replays');
+        $configured = config('http-replay.storage_path', 'tests/.laravel-http-replay');
 
         if (str_starts_with($configured, '/')) {
             return $configured;

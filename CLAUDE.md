@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Package Overview
 
-Laravel package (`pikant/laravel-easy-http-fake`) for storing, using, and renewing HTTP fakes in Laravel. Built with Spatie's Laravel Package Tools. Supports Laravel 11/12 and PHP 8.3/8.4.
+Laravel package (`pikant/laravel-http-replay`) for recording and replaying HTTP responses in Laravel/Pest tests. Built with Spatie's Laravel Package Tools. Supports Laravel 11/12 and PHP 8.3/8.4.
 
 ## Commands
 
@@ -23,9 +23,9 @@ composer format              # Run Laravel Pint code formatter
 
 ## Architecture
 
-- **Namespace:** `Pikant\LaravelEasyHttpFake`
-- **Service Provider:** `LaravelEasyHttpFakeServiceProvider` — registers config, views, migrations, and commands using Spatie's `PackageServiceProvider`
-- **Facade:** `Pikant\LaravelEasyHttpFake\Facades\LaravelEasyHttpFake` — resolves to the main `LaravelEasyHttpFake` class
+- **Namespace:** `Pikant\LaravelHttpReplay`
+- **Service Provider:** `LaravelHttpReplayServiceProvider` — registers config, views, migrations, and commands using Spatie's `PackageServiceProvider`
+- **Facade:** `Pikant\LaravelHttpReplay\Facades\Replay` — resolves to the main `LaravelHttpReplay` class
 - **Testing:** Uses Pest PHP 4 with Orchestra Testbench. Base `TestCase` configures SQLite in-memory DB and auto-registers the service provider
 - **Architecture tests** in `tests/ArchTest.php` enforce no `dd`, `dump`, or `ray` calls in source code
 
@@ -33,4 +33,4 @@ composer format              # Run Laravel Pint code formatter
 
 - **PHPStan** at level 5 with Larastan, Octane compatibility, and model property checks enabled
 - **Pint** for code formatting (Laravel preset)
-- CI runs tests across PHP 8.3–8.4 × Laravel 11–12 matrix on Ubuntu and Windows
+- CI runs tests across PHP 8.3-8.4 x Laravel 11-12 matrix on Ubuntu and Windows

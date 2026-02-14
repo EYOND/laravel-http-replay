@@ -9,7 +9,9 @@
       "Bash(./vendor/bin/pest:*)",
       "Bash(git checkout:*)",
       "Bash(ls:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(./vendor/bin/phpstan analyse:*)",
+      "Bash(./vendor/bin/pint:*)"
     ]
   },
   "plansDirectory": ".claude/plans"

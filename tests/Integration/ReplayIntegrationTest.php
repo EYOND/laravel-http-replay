@@ -7,7 +7,7 @@
  * On the first run they make real HTTP calls and store the responses.
  * On subsequent runs they replay the stored responses (no network needed).
  *
- * The stored fakes in tests/.http-replays/Integration/ are committed to the repo.
+ * The stored fakes in tests/.laravel-http-replay/Integration/ are committed to the repo.
  */
 
 use Illuminate\Support\Facades\File;
@@ -72,7 +72,7 @@ it('disambiguates same-URL requests via withAttributes', function () {
     expect($post2->json('id'))->toBe(2);
 
     // Verify the files are named after the attributes
-    $dir = (new \Pikant\LaravelEasyHttpFake\ReplayStorage)->getTestDirectory();
+    $dir = (new \Pikant\LaravelHttpReplay\ReplayStorage)->getTestDirectory();
     expect(File::exists($dir.'/first_post.json'))->toBeTrue();
     expect(File::exists($dir.'/second_post.json'))->toBeTrue();
 });
@@ -82,7 +82,7 @@ it('disambiguates same-URL requests via withAttributes', function () {
 // ---------------------------------------------------------------------------
 
 it('disambiguates same-URL requests via matchBy body', function () {
-    Http::replay()->matchBy('url', 'body');
+    Http::replay()->matchBy('url', 'body_hash');
 
     $response1 = Http::post('https://jsonplaceholder.typicode.com/posts', [
         'title' => 'Post A',
@@ -100,28 +100,26 @@ it('disambiguates same-URL requests via matchBy body', function () {
     expect($response2->json('title'))->toBe('Post B');
 
     // Verify two distinct files with body hashes exist
-    $dir = (new \Pikant\LaravelEasyHttpFake\ReplayStorage)->getTestDirectory();
+    $dir = (new \Pikant\LaravelHttpReplay\ReplayStorage)->getTestDirectory();
     $files = collect(File::files($dir))->map->getFilename()->all();
 
     expect($files)->toHaveCount(2);
-    expect($files[0])->toContain('__');
-    expect($files[1])->toContain('__');
     expect($files[0])->not->toBe($files[1]);
 });
 
 // ---------------------------------------------------------------------------
-//  Shared fakes (storeAs / from)
+//  Shared fakes (storeIn / from)
 // ---------------------------------------------------------------------------
 
-it('stores fakes to a shared location with storeAs', function () {
-    Http::replay()->storeAs('jsonplaceholder');
+it('stores fakes to a shared location with storeIn', function () {
+    Http::replay()->storeIn('jsonplaceholder');
 
     $response = Http::get('https://jsonplaceholder.typicode.com/posts/1');
 
     expect($response->json('id'))->toBe(1);
 
     // Verify shared directory was created
-    $sharedDir = (new \Pikant\LaravelEasyHttpFake\ReplayStorage)->getSharedDirectory('jsonplaceholder');
+    $sharedDir = (new \Pikant\LaravelHttpReplay\ReplayStorage)->getSharedDirectory('jsonplaceholder');
     expect(File::isDirectory($sharedDir))->toBeTrue();
     expect(File::files($sharedDir))->not->toBeEmpty();
 });
@@ -176,7 +174,7 @@ it('replays non-expired responses with expireAfter', function () {
 
 it('re-records when fresh() is used', function () {
     // Use a dedicated shared location so we don't destroy other tests' fakes
-    $storage = new \Pikant\LaravelEasyHttpFake\ReplayStorage;
+    $storage = new \Pikant\LaravelHttpReplay\ReplayStorage;
     $freshDir = $storage->getSharedDirectory('fresh-test');
 
     // Pre-populate with a stale fake
@@ -194,7 +192,7 @@ it('re-records when fresh() is used', function () {
     ]));
 
     // fresh() should delete the old fake and re-record
-    Http::replay()->storeAs('fresh-test')->fresh();
+    Http::replay()->storeIn('fresh-test')->fresh();
 
     $response = Http::get('https://jsonplaceholder.typicode.com/posts/3');
 
@@ -216,7 +214,7 @@ it('stores responses in the expected JSON format', function () {
 
     Http::get('https://jsonplaceholder.typicode.com/posts/1');
 
-    $dir = (new \Pikant\LaravelEasyHttpFake\ReplayStorage)->getTestDirectory();
+    $dir = (new \Pikant\LaravelHttpReplay\ReplayStorage)->getTestDirectory();
     $files = File::files($dir);
 
     expect($files)->not->toBeEmpty();
@@ -255,8 +253,8 @@ describe('preventStrayRequests', function () {
         Http::get('https://jsonplaceholder.typicode.com/posts/1');
     })->throws(\Illuminate\Http\Client\StrayRequestException::class);
 
-    it('throws when storeAs needs real requests but stray requests are prevented', function () {
-        Http::replay()->storeAs('new-feature');
+    it('throws when storeIn needs real requests but stray requests are prevented', function () {
+        Http::replay()->storeIn('new-feature');
         Http::preventStrayRequests();
 
         Http::get('https://jsonplaceholder.typicode.com/posts/1');

@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\File;
 
 beforeEach(function () {
     $this->replayDir = sys_get_temp_dir().'/http-replays-cmd-'.uniqid();
-    config()->set('easy-http-fake.storage_path', $this->replayDir);
+    config()->set('http-replay.storage_path', $this->replayDir);
 });
 
 afterEach(function () {
@@ -17,7 +17,7 @@ it('deletes all replay files with no options', function () {
     File::ensureDirectoryExists($this->replayDir.'/Feature/Test');
     File::put($this->replayDir.'/Feature/Test/response.json', '{}');
 
-    $this->artisan('replay:fresh')
+    $this->artisan('replay:prune')
         ->assertSuccessful();
 
     expect(File::isDirectory($this->replayDir))->toBeFalse();
@@ -28,14 +28,14 @@ it('deletes shared fakes by name', function () {
     File::ensureDirectoryExists($sharedDir);
     File::put($sharedDir.'/GET_products.json', '{}');
 
-    $this->artisan('replay:fresh', ['--shared' => 'shopify'])
+    $this->artisan('replay:prune', ['--shared' => 'shopify'])
         ->assertSuccessful();
 
     expect(File::isDirectory($sharedDir))->toBeFalse();
 });
 
 it('warns when shared directory does not exist', function () {
-    $this->artisan('replay:fresh', ['--shared' => 'nonexistent'])
+    $this->artisan('replay:prune', ['--shared' => 'nonexistent'])
         ->assertSuccessful()
         ->expectsOutputToContain('not found');
 });
@@ -45,7 +45,7 @@ it('deletes fakes for a specific test file', function () {
     File::ensureDirectoryExists($dir);
     File::put($dir.'/response.json', '{}');
 
-    $this->artisan('replay:fresh', ['--file' => 'tests/Feature/ShopifyTest.php'])
+    $this->artisan('replay:prune', ['--file' => 'tests/Feature/ShopifyTest.php'])
         ->assertSuccessful();
 
     expect(File::isDirectory($dir))->toBeFalse();
@@ -63,7 +63,7 @@ it('deletes fakes matching a URL pattern', function () {
         'request' => ['url' => 'https://api.stripe.com/charges'],
     ]));
 
-    $this->artisan('replay:fresh', ['--url' => 'shopify.com/*'])
+    $this->artisan('replay:prune', ['--url' => 'shopify.com/*'])
         ->assertSuccessful();
 
     expect(File::exists($dir.'/shopify.json'))->toBeFalse();

@@ -2,8 +2,8 @@
 
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
-use Pikant\LaravelEasyHttpFake\ReplayBuilder;
-use Pikant\LaravelEasyHttpFake\ReplayStorage;
+use Pikant\LaravelHttpReplay\ReplayBuilder;
+use Pikant\LaravelHttpReplay\ReplayStorage;
 
 beforeEach(function () {
     $this->tempDir = sys_get_temp_dir().'/http-replays-builder-'.uniqid();
@@ -69,7 +69,7 @@ it('replays stored responses', function () {
 it('supports fluent matchBy configuration', function () {
     $builder = new ReplayBuilder($this->storage);
 
-    $result = $builder->matchBy('url', 'method', 'body');
+    $result = $builder->matchBy('url', 'http_method', 'body_hash');
 
     expect($result)->toBeInstanceOf(ReplayBuilder::class);
 });
@@ -100,10 +100,10 @@ it('supports fluent from configuration', function () {
     expect($result)->toBeInstanceOf(ReplayBuilder::class);
 });
 
-it('supports fluent storeAs configuration', function () {
+it('supports fluent storeIn configuration', function () {
     $builder = new ReplayBuilder($this->storage);
 
-    $result = $builder->storeAs('shopify');
+    $result = $builder->storeIn('shopify');
 
     expect($result)->toBeInstanceOf(ReplayBuilder::class);
 });
@@ -129,7 +129,7 @@ it('supports full fluent chain', function () {
 
     $result = $builder
         ->only(['shopify.com/*'])
-        ->matchBy('url', 'body')
+        ->matchBy('url', 'body_hash')
         ->expireAfter(days: 7)
         ->fake([
             'api.stripe.com/*' => Http::response(['ok' => true]),
@@ -153,9 +153,9 @@ it('serves static fakes for non-replay URLs when only is set', function () {
     expect($response->json('charge'))->toBe('ok');
 });
 
-it('stores response to shared directory with storeAs', function () {
+it('stores response to shared directory with storeIn', function () {
     $builder = new ReplayBuilder($this->storage);
-    $builder->storeAs('my-shared');
+    $builder->storeIn('my-shared');
 
     $sharedDir = $this->storage->getSharedDirectory('my-shared');
 
@@ -206,3 +206,42 @@ it('deletes stored responses when fresh() is used', function () {
 
     expect(File::isDirectory($sharedDir))->toBeFalse();
 });
+
+it('supports for()->matchBy() per-URL configuration', function () {
+    $builder = new ReplayBuilder($this->storage);
+
+    $result = $builder
+        ->for('myshopify.com/*')->matchBy('url', 'http_attribute:request_name')
+        ->for('reybex.com/*')->matchBy('http_method', 'url');
+
+    expect($result)->toBeInstanceOf(ReplayBuilder::class);
+
+    $reflection = new ReflectionClass($builder);
+    $prop = $reflection->getProperty('perPatternMatchBy');
+
+    expect($prop->getValue($builder))->toHaveCount(2);
+});
+
+it('throws ReplayBailException when bail is active', function () {
+    config()->set('http-replay.bail', true);
+
+    $dir = $this->tempDir.'/test';
+    File::ensureDirectoryExists($dir);
+
+    $builder = new ReplayBuilder($this->storage);
+
+    // Set up the builder as initialized with pending recordings
+    $reflection = new ReflectionClass($builder);
+    $reflection->getProperty('initialized')->setValue($builder, true);
+    $reflection->getProperty('loadDirectory')->setValue($builder, $dir);
+    $reflection->getProperty('saveDirectory')->setValue($builder, $dir);
+    $reflection->getProperty('pendingRecordings')->setValue($builder, ['GET:https://api.example.com/products' => 1]);
+
+    // Simulate a response being received (this is what triggers bail)
+    Http::fake(['api.example.com/*' => Http::response(['ok' => true])]);
+    Http::get('https://api.example.com/products');
+    [$request, $response] = Http::recorded()[0];
+
+    $method = $reflection->getMethod('handleResponseReceived');
+    $method->invoke($builder, $request, $response);
+})->throws(\Pikant\LaravelHttpReplay\Exceptions\ReplayBailException::class);

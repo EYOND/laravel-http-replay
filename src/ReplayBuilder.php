@@ -1,6 +1,6 @@
 <?php
 
-namespace Pikant\LaravelEasyHttpFake;
+namespace Pikant\LaravelHttpReplay;
 
 use Closure;
 use Illuminate\Http\Client\Events\ResponseReceived;
@@ -9,11 +9,12 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Pikant\LaravelHttpReplay\Exceptions\ReplayBailException;
 
 class ReplayBuilder
 {
-    /** @var list<string> */
-    protected array $matchByFields = ['url', 'method'];
+    /** @var list<string|Closure> */
+    protected array $matchByFields = ['http_method', 'url'];
 
     /** @var list<string>|null */
     protected ?array $onlyPatterns = null;
@@ -23,7 +24,7 @@ class ReplayBuilder
 
     protected ?string $fromName = null;
 
-    protected ?string $storeAsName = null;
+    protected ?string $storeInName = null;
 
     protected bool $isFresh = false;
 
@@ -46,6 +47,11 @@ class ReplayBuilder
     /** @var array<string, int> */
     protected array $pendingRecordings = [];
 
+    protected ?string $currentForPattern = null;
+
+    /** @var array<string, list<string|Closure>> */
+    protected array $perPatternMatchBy = [];
+
     protected ReplayStorage $storage;
 
     protected ReplayNamer $namer;
@@ -58,18 +64,33 @@ class ReplayBuilder
     ) {
         $this->storage = $storage ?? new ReplayStorage;
         $this->serializer = $serializer ?? new ResponseSerializer;
-        $this->namer = new ReplayNamer($this->matchByFields);
+        $this->namer = new ReplayNamer;
 
         $this->registerFakeCallback();
         $this->registerResponseListener();
     }
 
     /**
-     * @param  string  ...$fields  Fields to match by: 'url', 'method', 'body'
+     * @param  string|Closure  ...$fields  Matchers for filename generation
      */
-    public function matchBy(string ...$fields): self
+    public function matchBy(string|Closure ...$fields): self
     {
-        $this->matchByFields = array_values($fields);
+        if ($this->currentForPattern !== null) {
+            $this->perPatternMatchBy[$this->currentForPattern] = array_values($fields);
+            $this->currentForPattern = null;
+        } else {
+            $this->matchByFields = array_values($fields);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Set a URL pattern for per-URL matcher configuration.
+     */
+    public function for(string $pattern): self
+    {
+        $this->currentForPattern = $pattern;
 
         return $this;
     }
@@ -101,9 +122,9 @@ class ReplayBuilder
         return $this;
     }
 
-    public function storeAs(string $name): self
+    public function storeIn(string $name): self
     {
-        $this->storeAsName = $name;
+        $this->storeInName = $name;
 
         return $this;
     }
@@ -138,7 +159,6 @@ class ReplayBuilder
     protected function initialize(): void
     {
         $this->initialized = true;
-        $this->namer = new ReplayNamer($this->matchByFields);
 
         $this->resolveDirectories();
         $this->handleFreshAndExpiry();
@@ -154,9 +174,9 @@ class ReplayBuilder
             $this->saveDirectory = $this->isFresh
                 ? $this->storage->getSharedDirectory($this->fromName)
                 : $this->storage->getTestDirectory();
-        } elseif ($this->storeAsName !== null) {
-            $this->loadDirectory = $this->storage->getSharedDirectory($this->storeAsName);
-            $this->saveDirectory = $this->storage->getSharedDirectory($this->storeAsName);
+        } elseif ($this->storeInName !== null) {
+            $this->loadDirectory = $this->storage->getSharedDirectory($this->storeInName);
+            $this->saveDirectory = $this->storage->getSharedDirectory($this->storeInName);
         } else {
             $this->loadDirectory = $this->storage->getTestDirectory();
             $this->saveDirectory = $this->storage->getTestDirectory();
@@ -165,7 +185,7 @@ class ReplayBuilder
 
     protected function handleFreshAndExpiry(): void
     {
-        $isFresh = $this->isFresh || config('easy-http-fake.fresh', false);
+        $isFresh = $this->isFresh || config('http-replay.fresh', false);
 
         if ($isFresh) {
             if ($this->freshPattern !== null) {
@@ -215,7 +235,8 @@ class ReplayBuilder
         }
 
         // Try to serve from stored responses
-        $baseFilename = $this->getBaseFilename($this->namer->fromRequest($request));
+        $matchBy = $this->resolveMatchBy($request);
+        $baseFilename = $this->getBaseFilename($this->namer->fromRequest($request, $matchBy));
 
         if (isset($this->responseQueues[$baseFilename]) && count($this->responseQueues[$baseFilename]) > 0) {
             $data = array_shift($this->responseQueues[$baseFilename]);
@@ -248,12 +269,31 @@ class ReplayBuilder
 
         $this->pendingRecordings[$key]--;
 
-        $filename = $this->namer->fromRequest($request);
+        // Bail mode — fail if attempting to write
+        if (config('http-replay.bail', false)) {
+            $matchBy = $this->resolveMatchBy($request);
+            $filename = $this->namer->fromRequest($request, $matchBy);
+
+            throw new ReplayBailException(
+                "Http Replay attempted to write [{$this->saveDirectory}/{$filename}] but bail mode is active. "
+                .'Run tests locally to record new fakes.'
+            );
+        }
+
+        $matchBy = $this->resolveMatchBy($request);
+        $filename = $this->namer->fromRequest($request, $matchBy);
         $filename = $this->namer->makeUnique($filename, $this->usedFilenames);
         $this->usedFilenames[] = $filename;
 
         $data = $this->serializer->serialize($request, $response);
         $this->storage->store($data, $this->saveDirectory, $filename);
+
+        // Mark test as incomplete when recording new responses
+        if (class_exists(\Pest\TestSuite::class)) {
+            \Pest\TestSuite::getInstance()->registerSnapshotChange(
+                "Http replay recorded at [{$this->saveDirectory}/{$filename}]"
+            );
+        }
     }
 
     protected function shouldReplay(Request $request): bool
@@ -289,12 +329,36 @@ class ReplayBuilder
         return null;
     }
 
+    /**
+     * Resolve which matchBy fields to use for a given request.
+     *
+     * @return list<string|Closure>
+     */
+    protected function resolveMatchBy(Request $request): array
+    {
+        foreach ($this->perPatternMatchBy as $pattern => $matchBy) {
+            if (Str::is(Str::start($pattern, '*'), $request->url())) {
+                return $matchBy;
+            }
+        }
+
+        return $this->matchByFields;
+    }
+
     protected function recordingKey(Request $request): string
     {
+        $matchBy = $this->resolveMatchBy($request);
         $key = $request->method().':'.$request->url();
 
-        if (in_array('body', $this->matchByFields)) {
-            $key .= ':'.md5(json_encode($request->body()) ?: '');
+        // Include body hash in key if any body-related matcher is active
+        foreach ($matchBy as $field) {
+            if ($field instanceof Closure) {
+                continue;
+            }
+            if (in_array($field, ['body', 'body_hash']) || str_starts_with($field, 'body_hash:')) {
+                $key .= ':'.md5(json_encode($request->body()) ?: '');
+                break;
+            }
         }
 
         return $key;

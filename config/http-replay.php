@@ -1,6 +1,6 @@
 <?php
 
-// config for Pikant/LaravelEasyHttpFake
+// config for Pikant/LaravelHttpReplay
 return [
 
     /*
@@ -12,18 +12,19 @@ return [
     | resolved from the project root (base_path).
     |
     */
-    'storage_path' => 'tests/.http-replays',
+    'storage_path' => 'tests/.laravel-http-replay',
 
     /*
     |--------------------------------------------------------------------------
     | Default Match By
     |--------------------------------------------------------------------------
     |
-    | The default fields used to match requests to stored responses.
-    | Supported values: 'url', 'method', 'body'
+    | The default matchers used to generate filenames from requests.
+    | Supported: 'http_method', 'url', 'host', 'subdomain',
+    |            'http_attribute:key', 'body_hash', 'body_hash:key1,key2'
     |
     */
-    'match_by' => ['url', 'method'],
+    'match_by' => ['http_method', 'url'],
 
     /*
     |--------------------------------------------------------------------------
@@ -46,5 +47,17 @@ return [
     |
     */
     'fresh' => false,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Bail Mode
+    |--------------------------------------------------------------------------
+    |
+    | When enabled, tests will fail if Replay attempts to write a new file.
+    | Useful in CI to ensure all replays are committed.
+    | In your app config, use: 'bail' => env('REPLAY_BAIL', false)
+    |
+    */
+    'bail' => false,
 
 ];

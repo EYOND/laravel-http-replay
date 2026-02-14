@@ -1,6 +1,6 @@
 <?php
 
-namespace Pikant\LaravelEasyHttpFake;
+namespace Pikant\LaravelHttpReplay;
 
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\Client\Response;

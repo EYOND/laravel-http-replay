@@ -1,53 +1,56 @@
 <?php
 
 use Illuminate\Support\Facades\Http;
-use Pikant\LaravelEasyHttpFake\ReplayNamer;
+use Pikant\LaravelHttpReplay\ReplayNamer;
 
 beforeEach(function () {
     $this->namer = new ReplayNamer;
 });
 
-it('generates default name from GET request', function () {
+it('generates name with http_method and url matchers', function () {
     Http::fake();
 
     Http::get('https://api.example.com/products');
 
     $request = Http::recorded()[0][0];
-    $name = $this->namer->defaultName($request);
+    $name = $this->namer->fromRequest($request, ['http_method', 'url']);
 
     expect($name)->toBe('GET_api_example_com_products.json');
 });
 
-it('generates default name from POST request', function () {
+it('generates name from POST request', function () {
     Http::fake();
 
     Http::post('https://api.example.com/orders', ['item' => 'test']);
 
     $request = Http::recorded()[0][0];
-    $name = $this->namer->defaultName($request);
+    $name = $this->namer->fromRequest($request, ['http_method', 'url']);
 
     expect($name)->toBe('POST_api_example_com_orders.json');
 });
 
-it('generates name from attribute', function () {
-    expect($this->namer->fromAttribute('products'))->toBe('products.json');
-    expect($this->namer->fromAttribute('my-api-call'))->toBe('my-api-call.json');
+it('uses replay attribute when available', function () {
+    Http::fake();
+
+    Http::withAttributes(['replay' => 'products'])->get('https://api.example.com/products');
+
+    $request = Http::recorded()[0][0];
+    $name = $this->namer->fromRequest($request, ['http_method', 'url']);
+
+    expect($name)->toBe('products.json');
 });
 
-it('generates body hash name', function () {
+it('generates name with body_hash matcher', function () {
     Http::fake();
 
     Http::post('https://shopify.com/graphql', ['query' => '{products{...}}']);
 
     $request = Http::recorded()[0][0];
-
-    $namer = new ReplayNamer(['url', 'method', 'body']);
-    $name = $namer->fromBodyHash($request);
+    $name = $this->namer->fromRequest($request, ['http_method', 'url', 'body_hash']);
 
     expect($name)
-        ->toStartWith('POST_shopify_com_graphql__')
-        ->toEndWith('.json')
-        ->toContain('__');
+        ->toStartWith('POST_shopify_com_graphql_')
+        ->toEndWith('.json');
 });
 
 it('generates different body hash names for different bodies', function () {
@@ -59,45 +62,88 @@ it('generates different body hash names for different bodies', function () {
     $request1 = Http::recorded()[0][0];
     $request2 = Http::recorded()[1][0];
 
-    $namer = new ReplayNamer(['url', 'method', 'body']);
+    $name1 = $this->namer->fromRequest($request1, ['http_method', 'url', 'body_hash']);
+    $name2 = $this->namer->fromRequest($request2, ['http_method', 'url', 'body_hash']);
 
-    expect($namer->fromBodyHash($request1))
-        ->not->toBe($namer->fromBodyHash($request2));
+    expect($name1)->not->toBe($name2);
 });
 
-it('uses attribute when available via fromRequest', function () {
+it('generates name with host matcher only', function () {
     Http::fake();
 
-    Http::withAttributes(['replay' => 'products'])->get('https://api.example.com/products');
+    Http::get('https://shop.myshopify.com/api/products');
 
     $request = Http::recorded()[0][0];
-    $name = $this->namer->fromRequest($request);
+    $name = $this->namer->fromRequest($request, ['host']);
 
+    expect($name)->toBe('shop_myshopify_com.json');
+});
+
+it('generates name with subdomain matcher', function () {
+    Http::fake();
+
+    Http::get('https://shop.myshopify.com/api/products');
+
+    $request = Http::recorded()[0][0];
+    $name = $this->namer->fromRequest($request, ['subdomain']);
+
+    expect($name)->toBe('shop.json');
+});
+
+it('returns null for subdomain when no subdomain exists', function () {
+    Http::fake();
+
+    Http::get('https://example.com/api/products');
+
+    $request = Http::recorded()[0][0];
+    // Only subdomain — should fall back since subdomain is null
+    $name = $this->namer->fromRequest($request, ['subdomain']);
+
+    expect($name)->toBe('unknown.json');
+});
+
+it('generates name with http_attribute matcher', function () {
+    Http::fake();
+
+    Http::withAttributes(['replay' => 'products', 'request_name' => 'get-products'])
+        ->get('https://api.example.com/products');
+
+    $request = Http::recorded()[0][0];
+    // replay attribute takes priority — use custom attribute instead
+    $name = $this->namer->fromRequest($request, ['http_attribute:request_name']);
+
+    // replay attribute takes priority over matchers
     expect($name)->toBe('products.json');
 });
 
-it('uses body hash when matchBy includes body', function () {
+it('generates name with closure matcher', function () {
     Http::fake();
 
-    Http::post('https://shopify.com/graphql', ['query' => '{products{...}}']);
+    Http::post('https://shopify.com/graphql', ['operationName' => 'GetProducts']);
 
     $request = Http::recorded()[0][0];
+    $name = $this->namer->fromRequest($request, [
+        'http_method',
+        fn ($r) => [$r->data()['operationName'] ?? 'unknown'],
+    ]);
 
-    $namer = new ReplayNamer(['url', 'method', 'body']);
-    $name = $namer->fromRequest($request);
-
-    expect($name)->toStartWith('POST_shopify_com_graphql__');
+    expect($name)->toBe('POST_GetProducts.json');
 });
 
-it('falls back to default name', function () {
+it('supports backward compat for method and body strings', function () {
     Http::fake();
 
-    Http::get('https://api.example.com/products');
+    Http::post('https://api.example.com/data', ['key' => 'value']);
 
     $request = Http::recorded()[0][0];
-    $name = $this->namer->fromRequest($request);
 
-    expect($name)->toBe('GET_api_example_com_products.json');
+    // 'method' should work like 'http_method'
+    $name = $this->namer->fromRequest($request, ['method', 'url']);
+    expect($name)->toBe('POST_api_example_com_data.json');
+
+    // 'body' should work like 'body_hash'
+    $name = $this->namer->fromRequest($request, ['method', 'url', 'body']);
+    expect($name)->toStartWith('POST_api_example_com_data_');
 });
 
 it('makes filename unique with counter', function () {
@@ -122,7 +168,27 @@ it('handles URL without path', function () {
     Http::get('https://example.com');
 
     $request = Http::recorded()[0][0];
-    $name = $this->namer->defaultName($request);
+    $name = $this->namer->fromRequest($request, ['http_method', 'url']);
 
     expect($name)->toBe('GET_example_com.json');
 });
+
+it('generates name with body_hash and specific keys', function () {
+    Http::fake();
+
+    Http::post('https://shopify.com/graphql', [
+        'query' => '{products{...}}',
+        'variables' => ['id' => '123'],
+    ]);
+
+    $request = Http::recorded()[0][0];
+    $name = $this->namer->fromRequest($request, ['http_method', 'url', 'body_hash:query,variables.id']);
+
+    expect($name)
+        ->toStartWith('POST_shopify_com_graphql_')
+        ->toEndWith('.json');
+});
+
+it('throws on unknown matcher string', function () {
+    $this->namer->parseMatchers(['nonexistent']);
+})->throws(\InvalidArgumentException::class, 'Unknown matcher: nonexistent');

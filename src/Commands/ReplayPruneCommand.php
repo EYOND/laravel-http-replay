@@ -1,14 +1,14 @@
 <?php
 
-namespace Pikant\LaravelEasyHttpFake\Commands;
+namespace Pikant\LaravelHttpReplay\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
-use Pikant\LaravelEasyHttpFake\ReplayStorage;
+use Pikant\LaravelHttpReplay\ReplayStorage;
 
-class ReplayFreshCommand extends Command
+class ReplayPruneCommand extends Command
 {
-    public $signature = 'replay:fresh
+    public $signature = 'replay:prune
         {--test= : Delete fakes for a specific test description}
         {--file= : Delete fakes for a specific test file}
         {--url= : Delete fakes matching a URL pattern}

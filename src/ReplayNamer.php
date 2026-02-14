@@ -1,62 +1,47 @@
 <?php
 
-namespace Pikant\LaravelEasyHttpFake;
+namespace Pikant\LaravelHttpReplay;
 
+use Closure;
 use Illuminate\Http\Client\Request;
+use Pikant\LaravelHttpReplay\Matchers\BodyHashMatcher;
+use Pikant\LaravelHttpReplay\Matchers\ClosureMatcher;
+use Pikant\LaravelHttpReplay\Matchers\HostMatcher;
+use Pikant\LaravelHttpReplay\Matchers\HttpAttributeMatcher;
+use Pikant\LaravelHttpReplay\Matchers\HttpMethodMatcher;
+use Pikant\LaravelHttpReplay\Matchers\NameMatcher;
+use Pikant\LaravelHttpReplay\Matchers\SubdomainMatcher;
+use Pikant\LaravelHttpReplay\Matchers\UrlMatcher;
 
 class ReplayNamer
 {
     /**
-     * @param  list<string>  $matchBy
+     * @param  list<string|Closure>  $matchBy
      */
-    public function __construct(
-        protected array $matchBy = ['url', 'method'],
-    ) {}
-
-    public function fromRequest(Request $request): string
+    public function fromRequest(Request $request, array $matchBy): string
     {
+        // Check for replay attribute — takes priority over matchers
         $replayAttribute = $request->attributes()['replay'] ?? null;
 
         if ($replayAttribute !== null) {
-            return $this->fromAttribute($replayAttribute);
+            return $this->sanitize($replayAttribute).'.json';
         }
 
-        if (in_array('body', $this->matchBy)) {
-            return $this->fromBodyHash($request);
+        $matchers = $this->parseMatchers($matchBy);
+        $parts = [];
+
+        foreach ($matchers as $matcher) {
+            $resolved = $matcher->resolve($request);
+            if ($resolved !== null && $resolved !== '') {
+                $parts[] = $this->sanitize($resolved);
+            }
         }
 
-        return $this->defaultName($request);
-    }
+        if ($parts === []) {
+            return 'unknown.json';
+        }
 
-    public function fromAttribute(string $name): string
-    {
-        return $this->sanitize($name).'.json';
-    }
-
-    public function fromBodyHash(Request $request): string
-    {
-        $method = strtoupper($request->method());
-        $parsed = parse_url($request->url());
-        $host = $parsed['host'] ?? 'unknown';
-        $path = trim($parsed['path'] ?? '', '/');
-
-        $bodyHash = substr(md5(json_encode($request->body()) ?: ''), 0, 6);
-
-        $name = $method.'_'.$this->sanitize($host.'_'.$path).'__'.$bodyHash;
-
-        return $name.'.json';
-    }
-
-    public function defaultName(Request $request): string
-    {
-        $method = strtoupper($request->method());
-        $parsed = parse_url($request->url());
-        $host = $parsed['host'] ?? 'unknown';
-        $path = trim($parsed['path'] ?? '', '/');
-
-        $name = $method.'_'.$this->sanitize($host.($path ? '_'.$path : ''));
-
-        return $name.'.json';
+        return implode('_', $parts).'.json';
     }
 
     /**
@@ -79,6 +64,42 @@ class ReplayNamer
         }
 
         return $base.'__'.$counter.'.'.$ext;
+    }
+
+    /**
+     * @param  list<string|Closure>  $matchBy
+     * @return list<NameMatcher>
+     */
+    public function parseMatchers(array $matchBy): array
+    {
+        $matchers = [];
+
+        foreach ($matchBy as $field) {
+            if ($field instanceof Closure) {
+                $matchers[] = new ClosureMatcher($field);
+
+                continue;
+            }
+
+            $matchers[] = match (true) {
+                $field === 'http_method' => new HttpMethodMatcher,
+                $field === 'method' => new HttpMethodMatcher, // backward compat
+                $field === 'subdomain' => new SubdomainMatcher,
+                $field === 'host' => new HostMatcher,
+                $field === 'url' => new UrlMatcher,
+                $field === 'body_hash' => new BodyHashMatcher,
+                $field === 'body' => new BodyHashMatcher, // backward compat
+                str_starts_with($field, 'http_attribute:') => new HttpAttributeMatcher(
+                    substr($field, strlen('http_attribute:'))
+                ),
+                str_starts_with($field, 'body_hash:') => new BodyHashMatcher(
+                    explode(',', substr($field, strlen('body_hash:')))
+                ),
+                default => throw new \InvalidArgumentException("Unknown matcher: {$field}"),
+            };
+        }
+
+        return $matchers;
     }
 
     protected function sanitize(string $value): string

@@ -1,20 +1,20 @@
 <?php
 
-namespace Pikant\LaravelEasyHttpFake;
+namespace Pikant\LaravelHttpReplay;
 
 use Illuminate\Http\Client\Factory;
-use Pikant\LaravelEasyHttpFake\Commands\ReplayFreshCommand;
+use Pikant\LaravelHttpReplay\Commands\ReplayPruneCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
-class LaravelEasyHttpFakeServiceProvider extends PackageServiceProvider
+class LaravelHttpReplayServiceProvider extends PackageServiceProvider
 {
     public function configurePackage(Package $package): void
     {
         $package
-            ->name('laravel-easy-http-fake')
+            ->name('laravel-http-replay')
             ->hasConfigFile()
-            ->hasCommand(ReplayFreshCommand::class);
+            ->hasCommand(ReplayPruneCommand::class);
     }
 
     public function packageBooted(): void

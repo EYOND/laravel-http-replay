@@ -1,5 +1,5 @@
 <?php
 
-use Pikant\LaravelEasyHttpFake\Tests\TestCase;
+use Pikant\LaravelHttpReplay\Tests\TestCase;
 
 uses(TestCase::class)->in(__DIR__);

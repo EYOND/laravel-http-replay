@@ -1,16 +1,16 @@
 <?php
 
-namespace Pikant\LaravelEasyHttpFake\Tests;
+namespace Pikant\LaravelHttpReplay\Tests;
 
 use Orchestra\Testbench\TestCase as Orchestra;
-use Pikant\LaravelEasyHttpFake\LaravelEasyHttpFakeServiceProvider;
+use Pikant\LaravelHttpReplay\LaravelHttpReplayServiceProvider;
 
 class TestCase extends Orchestra
 {
     protected function getPackageProviders($app)
     {
         return [
-            LaravelEasyHttpFakeServiceProvider::class,
+            LaravelHttpReplayServiceProvider::class,
         ];
     }
 

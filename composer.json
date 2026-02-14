@@ -1,12 +1,12 @@
 {
-    "name": "pikant/laravel-easy-http-fake",
-    "description": "Package to easily store, use and renew HTTP fakes for Laravel",
+    "name": "pikant/laravel-http-replay",
+    "description": "Record and replay HTTP responses in your Laravel/Pest tests",
     "keywords": [
         "pikant",
         "laravel",
-        "laravel-easy-http-fake"
+        "laravel-http-replay"
     ],
-    "homepage": "https://github.com/pikant/laravel-easy-http-fake",
+    "homepage": "https://github.com/pikant/laravel-http-replay",
     "license": "MIT",
     "authors": [
         {
@@ -35,12 +35,12 @@
     },
     "autoload": {
         "psr-4": {
-            "Pikant\\LaravelEasyHttpFake\\": "src/"
+            "Pikant\\LaravelHttpReplay\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Pikant\\LaravelEasyHttpFake\\Tests\\": "tests/",
+            "Pikant\\LaravelHttpReplay\\Tests\\": "tests/",
             "Workbench\\App\\": "workbench/app/"
         }
     },
@@ -62,10 +62,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "Pikant\\LaravelEasyHttpFake\\LaravelEasyHttpFakeServiceProvider"
+                "Pikant\\LaravelHttpReplay\\LaravelHttpReplayServiceProvider"
             ],
             "aliases": {
-                "LaravelEasyHttpFake": "Pikant\\LaravelEasyHttpFake\\Facades\\LaravelEasyHttpFake"
+                "Replay": "Pikant\\LaravelHttpReplay\\Facades\\Replay"
             }
         }
     },
