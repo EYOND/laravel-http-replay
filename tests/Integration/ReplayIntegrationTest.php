@@ -202,6 +202,9 @@ it('re-records when fresh() is used', function () {
     expect($response->json('id'))->toBe(3);
     // After fresh(), the stale title should be gone — the response is real or re-recorded
     expect($response->json('title'))->not->toBe('STALE DATA');
+
+    // Clean up so re-recorded files don't cause CI diffs
+    File::deleteDirectory($freshDir);
 });
 
 // ---------------------------------------------------------------------------
