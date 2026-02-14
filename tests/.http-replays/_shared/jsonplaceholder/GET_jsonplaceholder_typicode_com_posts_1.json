@@ -71,8 +71,7 @@
             "HIT"
         ],
         "Server-Timing": [
-            "cfCacheStatus;desc=\"HIT\"",
-            "cfEdge;dur=3,cfOrigin;dur=0"
+            "cfCacheStatus;desc=\"HIT\""
         ],
         "CF-RAY": [
             "9cd2a6f178fdbc4a-ZRH"
@@ -87,7 +86,7 @@
         "title": "sunt aut facere repellat provident occaecati excepturi optio reprehenderit",
         "body": "quia et suscipit\nsuscipit recusandae consequuntur expedita et cum\nreprehenderit molestiae ut ut quas totam\nnostrum rerum est autem sunt rem eveniet architecto"
     },
-    "recorded_at": "2026-02-13T07:35:58+00:00",
+    "recorded_at": "2026-02-14T06:51:00+00:00",
     "request": {
         "method": "GET",
         "url": "https://jsonplaceholder.typicode.com/posts/1",

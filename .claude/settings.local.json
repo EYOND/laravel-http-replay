@@ -5,7 +5,8 @@
       "Bash(composer analyse:*)",
       "Bash(composer format:*)",
       "Bash(composer dump-autoload:*)",
-      "Bash(vendor/bin/pest:*)"
+      "Bash(vendor/bin/pest:*)",
+      "Bash(./vendor/bin/pest:*)"
     ]
   },
   "plansDirectory": ".claude/plans"

@@ -2,7 +2,7 @@
     "status": 200,
     "headers": {
         "Date": [
-            "Fri, 13 Feb 2026 07:57:40 GMT"
+            "Sat, 14 Feb 2026 06:51:00 GMT"
         ],
         "Content-Type": [
             "application/json; charset=utf-8"
@@ -32,10 +32,10 @@
             "no-cache"
         ],
         "report-to": [
-            "{\"group\":\"heroku-nel\",\"endpoints\":[{\"url\":\"https://nel.heroku.com/reports?s=2Rl7XsQ0%2F8RBP5kFiHl%2FFeWbs6jctKKUx68Yy6waUzU%3D\\u0026sid=e11707d5-02a7-43ef-b45e-2cf4d2036f7d\\u0026ts=1770926520\"}],\"max_age\":3600}"
+            "{\"group\":\"heroku-nel\",\"endpoints\":[{\"url\":\"https://nel.heroku.com/reports?s=56h6w3vDsKCVp7JZJBOZqEk87YM%2BbkzLZ%2Fib5HyzCsM%3D\\u0026sid=e11707d5-02a7-43ef-b45e-2cf4d2036f7d\\u0026ts=1771003565\"}],\"max_age\":3600}"
         ],
         "reporting-endpoints": [
-            "heroku-nel=\"https://nel.heroku.com/reports?s=2Rl7XsQ0%2F8RBP5kFiHl%2FFeWbs6jctKKUx68Yy6waUzU%3D&sid=e11707d5-02a7-43ef-b45e-2cf4d2036f7d&ts=1770926520\""
+            "heroku-nel=\"https://nel.heroku.com/reports?s=56h6w3vDsKCVp7JZJBOZqEk87YM%2BbkzLZ%2Fib5HyzCsM%3D&sid=e11707d5-02a7-43ef-b45e-2cf4d2036f7d&ts=1771003565\""
         ],
         "Server": [
             "cloudflare"
@@ -56,13 +56,13 @@
             "1000"
         ],
         "x-ratelimit-remaining": [
-            "928"
+            "997"
         ],
         "x-ratelimit-reset": [
-            "1770926551"
+            "1771003580"
         ],
         "Age": [
-            "1301"
+            "3289"
         ],
         "Accept-Ranges": [
             "bytes"
@@ -72,10 +72,10 @@
         ],
         "Server-Timing": [
             "cfCacheStatus;desc=\"HIT\"",
-            "cfEdge;dur=5,cfOrigin;dur=0"
+            "cfEdge;dur=3,cfOrigin;dur=0"
         ],
         "CF-RAY": [
-            "9cd2c6b9cad22680-ZRH"
+            "9cdaa270aafc2397-ZRH"
         ],
         "alt-svc": [
             "h3=\":443\"; ma=86400"
@@ -87,7 +87,7 @@
         "title": "ea molestias quasi exercitationem repellat qui ipsa sit aut",
         "body": "et iusto sed quo iure\nvoluptatem occaecati omnis eligendi aut ad\nvoluptatem doloribus vel accusantium quis pariatur\nmolestiae porro eius odio et labore et velit aut"
     },
-    "recorded_at": "2026-02-13T07:57:40+00:00",
+    "recorded_at": "2026-02-14T06:51:00+00:00",
     "request": {
         "method": "GET",
         "url": "https://jsonplaceholder.typicode.com/posts/3",

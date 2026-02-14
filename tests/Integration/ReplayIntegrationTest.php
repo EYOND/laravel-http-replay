@@ -231,6 +231,40 @@ it('stores responses in the expected JSON format', function () {
 });
 
 // ---------------------------------------------------------------------------
+//  preventStrayRequests() compatibility
+// ---------------------------------------------------------------------------
+
+describe('preventStrayRequests', function () {
+    it('replays from shared without making real requests', function () {
+        Http::replay()->storeAs('jsonplaceholder');
+        Http::get('https://jsonplaceholder.typicode.com/posts/1');
+
+        // Reset Http state for a clean second call
+        Http::preventStrayRequests();
+        Http::replay()->from('jsonplaceholder');
+
+        $response = Http::get('https://jsonplaceholder.typicode.com/posts/1');
+
+        expect($response->status())->toBe(200);
+        expect($response->json('id'))->toBe(1);
+    });
+
+    it('throws when shared fakes do not exist and stray requests are prevented', function () {
+        Http::replay()->from('non-existent-shared');
+        Http::preventStrayRequests();
+
+        Http::get('https://jsonplaceholder.typicode.com/posts/1');
+    })->throws(\Illuminate\Http\Client\StrayRequestException::class);
+
+    it('throws when storeAs needs real requests but stray requests are prevented', function () {
+        Http::replay()->storeAs('new-feature');
+        Http::preventStrayRequests();
+
+        Http::get('https://jsonplaceholder.typicode.com/posts/1');
+    })->throws(\Illuminate\Http\Client\StrayRequestException::class);
+});
+
+// ---------------------------------------------------------------------------
 //  beforeEach pattern
 // ---------------------------------------------------------------------------
 
