@@ -29,6 +29,10 @@ composer format              # Run Laravel Pint code formatter
 - **Testing:** Uses Pest PHP 4 with Orchestra Testbench. Base `TestCase` configures SQLite in-memory DB and auto-registers the service provider
 - **Architecture tests** in `tests/ArchTest.php` enforce no `dd`, `dump`, or `ray` calls in source code
 
+## Documentation
+
+- **README.md** is the user-facing documentation. Any change to the package's public API, configuration, CLI flags, or usage patterns **must** be reflected in `README.md`.
+
 ## Code Quality
 
 - **PHPStan** at level 5 with Larastan, Octane compatibility, and model property checks enabled
