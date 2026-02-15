@@ -442,12 +442,30 @@ Load a single shared replay file for use in `Http::fake()`. Returns a `PromiseIn
 
 ## How It Works
 
-1. `Http::replay()` registers a `Http::fake()` callback
-2. When an HTTP request is made, the callback checks for a stored response
-3. **Stored response found** — returns it immediately (no network call)
-4. **No stored response** — returns `null`, allowing the real HTTP call to proceed
-5. Real responses are captured via the `ResponseReceived` event and saved to disk
-6. On the next test run, the stored response is found in step 3
+This package uses **only public Laravel APIs** — no internal hacks, no monkey-patching, no overriding core classes. Everything is built on top of two official extension points:
+
+1. **`Http::fake()` with a callback** — Laravel's HTTP client supports passing a closure to `Http::fake()`. This closure receives each outgoing request and can return a response or `null` (to allow the real request). Http Replay registers a single callback that checks for stored responses and either serves them or lets the request through.
+
+2. **`ResponseReceived` event** — Laravel dispatches this event after every HTTP response. Http Replay listens for it to capture real responses and save them to disk.
+
+The flow:
+
+```
+Http::replay()
+    │
+    ├─ Registers Http::fake(callback) via Factory::macro()
+    └─ Registers ResponseReceived event listener
+
+Request comes in:
+    │
+    ├─ Stored response exists? → Return it (no network call)
+    └─ No stored response? → Return null → Real HTTP call happens
+                                                │
+                                                └─ ResponseReceived event fires
+                                                    → Serialize & store to disk
+```
+
+The `Http::replay()` macro itself is registered on `Illuminate\Http\Client\Factory` via Laravel's standard `macro()` method in the service provider. No classes are extended or replaced.
 
 ## Requirements
 
@@ -467,7 +485,16 @@ Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed re
 
 ## Contributing
 
-Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
+This package is built with **Vibe Coding** — designed and developed in collaboration with Claude Code. Despite that, the codebase follows strict quality standards: PHPStan level 5, full test coverage across PHP 8.3-8.4 and Laravel 11-12, and consistent code formatting via Pint.
+
+**Bug fixes** — PRs with a failing test and fix are welcome.
+
+**New features** — Please don't submit a traditional code PR. Instead, open an issue or PR that:
+
+1. Describes the problem or use case
+2. Includes a **Claude Code prompt** that I can use to implement the feature myself
+
+This keeps the codebase consistent and lets me iterate on the implementation with the same AI-assisted workflow used to build the package.
 
 ## Security Vulnerabilities
 
