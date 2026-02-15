@@ -492,7 +492,7 @@ This package is built with **Vibe Coding** — designed and developed in collabo
 **New features** — Please don't submit a traditional code PR. Instead, open an issue or PR that:
 
 1. Describes the problem or use case
-2. Includes a **Claude Code prompt** that I can use to implement the feature myself
+2. Includes a **Claude Code prompt** or a **Claude Code plan** (`.md` file) that I can use to implement the feature myself
 
 This keeps the codebase consistent and lets me iterate on the implementation with the same AI-assisted workflow used to build the package.
 
