@@ -98,7 +98,7 @@ Use a closure for custom filename generation:
 
 ```php
 Http::replay()->matchBy(
-    'http_method',
+    'method',
     fn(Request $r) => [$r->data()['operationName'] ?? 'unknown'],
 );
 ```
@@ -107,18 +107,18 @@ Http::replay()->matchBy(
 
 The `matchBy()` method accepts any combination of built-in matchers:
 
-| Matcher | Config String | Example Output |
-|---------|--------------|----------------|
-| HTTP Method | `http_method` | `GET` |
-| URL (host + path) | `url` | `shop_myshopify_com_api_products` |
-| Host only | `host` | `shop_myshopify_com` |
-| Subdomain | `subdomain` | `shop` |
-| HTTP Attribute | `http_attribute:key` | Value of `$request->attributes()['key']` |
-| Body Hash | `body_hash` | `a1b2c3` (6-char hash of entire body) |
-| Body Hash (keys) | `body_hash:query,variables.id` | Hash of specific body fields |
-| Closure | `fn(Request $r) => [...]` | Array of filename parts |
+| Matcher | Config String | Alias | Example Output |
+|---------|--------------|-------|----------------|
+| HTTP Method | `method` | `http_method` | `GET` |
+| URL (host + path) | `url` | | `shop_myshopify_com_api_products` |
+| Host only | `host` | | `shop_myshopify_com` |
+| Subdomain | `subdomain` | | `shop` |
+| HTTP Attribute | `attribute:key` | `http_attribute:key` | Value of `$request->attributes()['key']` |
+| Body Hash | `body_hash` | | `a1b2c3` (6-char hash of entire body) |
+| Body Hash (keys) | `body_hash:query,variables.id` | | Hash of specific body fields |
+| Closure | `fn(Request $r) => [...]` | | Array of filename parts |
 
-Default: `['http_method', 'url']`
+Default: `['method', 'url']`
 
 ### Per-URL Configuration
 
@@ -126,29 +126,31 @@ Configure different matchers for different URL patterns:
 
 ```php
 Http::replay()
-    ->for('myshopify.com/*')->matchBy('url', 'http_attribute:request_name')
-    ->for('reybex.com/*')->matchBy('http_method', 'url');
+    ->for('myshopify.com/*')->matchBy('url', 'attribute:request_name')
+    ->for('reybex.com/*')->matchBy('method', 'url');
 ```
+
+The `for()` method returns a proxy object — you must call `matchBy()` directly on it. This prevents accidental state leaks.
 
 ### Shared Fakes
 
 Record responses once and reuse them across multiple tests.
 
-**Record to a shared location:**
+**Record to a shared location (read + write):**
 
 ```php
 it('records shared shopify fakes', function () {
-    Http::replay()->storeIn('shopify');
+    Http::replay()->useShared('shopify');
 
     app(ShopifyService::class)->getProducts();
 });
 ```
 
-**Use shared fakes in other tests:**
+**Read from shared, write to test-local:**
 
 ```php
 it('uses shared shopify fakes', function () {
-    Http::replay()->from('shopify');
+    Http::replay()->readFrom('shopify');
 
     $products = app(ShopifyService::class)->getProducts();
 
@@ -156,11 +158,29 @@ it('uses shared shopify fakes', function () {
 });
 ```
 
+**Read from multiple shared locations (first wins):**
+
+```php
+Http::replay()->readFrom('shopify', 'shopify-fallback');
+```
+
+**Write to shared, read from test-local:**
+
+```php
+Http::replay()->writeTo('shopify');
+```
+
+**Combine read + write explicitly:**
+
+```php
+Http::replay()->readFrom('shopify')->writeTo('shopify-v2');
+```
+
 **Use shared fakes for an entire file:**
 
 ```php
 beforeEach(function () {
-    Http::replay()->from('shopify');
+    Http::replay()->readFrom('shopify');
 });
 
 it('test one', function () {
@@ -172,13 +192,20 @@ it('test two', function () {
 });
 ```
 
+| Method | Reads from | Writes to |
+|--------|-----------|-----------|
+| `readFrom('a', 'b')` | shared/a, shared/b (first wins) | test-specific |
+| `writeTo('x')` | test-specific | shared/x |
+| `useShared('name')` | shared/name | shared/name |
+| `readFrom('a')->writeTo('x')` | shared/a | shared/x |
+
 **Load a single shared fake in `Http::fake()`:**
 
 ```php
 use Pikant\LaravelHttpReplay\Facades\Replay;
 
 Http::fake([
-    'foo.com/posts/*' => Replay::get('fresh-test/GET_jsonplaceholder_typicode_com_posts_3.json'),
+    'foo.com/posts/*' => Replay::getShared('fresh-test/GET_jsonplaceholder_typicode_com_posts_3.json'),
 ]);
 ```
 
@@ -192,7 +219,7 @@ Combine replay recording with static `Http::fake()` stubs. Use `only()` to limit
 it('mixes recorded and static fakes', function () {
     Http::replay()
         ->only(['shopify.com/*'])
-        ->fake([
+        ->alsoFake([
             'api.stripe.com/*' => Http::response(['ok' => true]),
             'sentry.io/*' => Http::response([], 200),
         ]);
@@ -219,8 +246,11 @@ Http::replay()->fresh('shopify.com/*');
 // Auto-expire after 7 days (re-records expired responses)
 Http::replay()->expireAfter(days: 7);
 
+// Auto-expire after 1 month (accepts DateInterval)
+Http::replay()->expireAfter(new DateInterval('P1M'));
+
 // Re-record shared fakes
-Http::replay()->from('shopify')->fresh();
+Http::replay()->readFrom('shopify')->fresh();
 ```
 
 #### Artisan Command
@@ -242,17 +272,24 @@ php artisan replay:prune --url="shopify.com/*"
 php artisan replay:prune --shared=shopify
 ```
 
+#### Pest Flag
+
+```bash
+# Re-record all fakes
+vendor/bin/pest --replay-fresh
+```
+
 #### Environment Variable
 
-Set `REPLAY_FRESH` in your app config to re-record all fakes (useful for CI):
+```bash
+REPLAY_FRESH=true vendor/bin/pest
+```
+
+Or set it in your app config:
 
 ```php
 // config/http-replay.php
 'fresh' => env('REPLAY_FRESH', false),
-```
-
-```bash
-REPLAY_FRESH=true vendor/bin/pest
 ```
 
 ### Bail on CI
@@ -286,7 +323,7 @@ it('complex shopify sync', function () {
         ->only(['shopify.com/*'])
         ->for('shopify.com/graphql')->matchBy('url', 'body_hash')
         ->expireAfter(days: 7)
-        ->fake([
+        ->alsoFake([
             'api.stripe.com/*' => Http::response(['ok' => true]),
         ]);
 
@@ -325,7 +362,7 @@ Each stored response is a JSON file containing the response data and metadata:
 
 ```
 tests/.laravel-http-replay/
-├── _shared/                                    # Shared fakes (via storeIn/from)
+├── _shared/                                    # Shared fakes (via useShared/readFrom/writeTo)
 │   └── shopify/
 │       └── GET_shopify_com_api_products.json
 ├── Feature/
@@ -350,11 +387,15 @@ tests/.laravel-http-replay/
 ```php
 // config/http-replay.php
 return [
-    // Directory for stored replays (relative to base_path)
+    // Directory for stored replays
+    // Relative paths are resolved from base_path() (your project root)
+    // Absolute paths (starting with /) are used as-is
     'storage_path' => 'tests/.laravel-http-replay',
 
     // Default matchers for filename generation
-    'match_by' => ['http_method', 'url'],
+    // Short forms: 'method', 'attribute:key'
+    // Aliases: 'http_method', 'http_attribute:key'
+    'match_by' => ['method', 'url'],
 
     // Auto-expire after N days (null = never)
     'expire_after' => null,
@@ -376,15 +417,16 @@ Returns a `ReplayBuilder` instance with the following fluent methods:
 | Method | Description |
 |---|---|
 | `matchBy(string\|Closure ...$fields)` | Matchers for filename generation |
-| `for(string $pattern)` | Set URL pattern for per-URL matcher config |
+| `for(string $pattern)` | Set URL pattern for per-URL matcher config (returns proxy, must chain `matchBy()`) |
 | `only(array $patterns)` | Only record/replay URLs matching these patterns |
-| `fake(array $stubs)` | Additional static fakes for non-replayed URLs |
-| `from(string $name)` | Load stored fakes from a shared location |
-| `storeIn(string $name)` | Save recorded fakes to a shared location |
+| `alsoFake(array $stubs)` | Additional static fakes for non-replayed URLs |
+| `readFrom(string ...$names)` | Load stored fakes from shared location(s), first wins |
+| `writeTo(string $name)` | Save recorded fakes to a shared location |
+| `useShared(string $name)` | Read + write from a shared location |
 | `fresh(?string $pattern)` | Delete stored fakes and re-record (optionally filtered by URL pattern) |
-| `expireAfter(int $days)` | Auto-expire stored fakes after N days |
+| `expireAfter(int\|DateInterval $days)` | Auto-expire stored fakes after N days or a DateInterval |
 
-### `Replay::get(string $path)`
+### `Replay::getShared(string $path)`
 
 Load a single shared replay file for use in `Http::fake()`. Returns a `PromiseInterface`.
 

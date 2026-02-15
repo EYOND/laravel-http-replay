@@ -108,11 +108,11 @@ it('disambiguates same-URL requests via matchBy body', function () {
 });
 
 // ---------------------------------------------------------------------------
-//  Shared fakes (storeIn / from)
+//  Shared fakes (useShared / readFrom)
 // ---------------------------------------------------------------------------
 
-it('stores fakes to a shared location with storeIn', function () {
-    Http::replay()->storeIn('jsonplaceholder');
+it('stores fakes to a shared location with useShared', function () {
+    Http::replay()->useShared('jsonplaceholder');
 
     $response = Http::get('https://jsonplaceholder.typicode.com/posts/1');
 
@@ -124,10 +124,10 @@ it('stores fakes to a shared location with storeIn', function () {
     expect(File::files($sharedDir))->not->toBeEmpty();
 });
 
-it('loads fakes from a shared location with from()', function () {
+it('loads fakes from a shared location with readFrom()', function () {
     // This test depends on the previous test having stored shared fakes.
     // If shared fakes don't exist yet, the real HTTP call happens and succeeds.
-    Http::replay()->from('jsonplaceholder');
+    Http::replay()->readFrom('jsonplaceholder');
 
     $response = Http::get('https://jsonplaceholder.typicode.com/posts/1');
 
@@ -142,7 +142,7 @@ it('loads fakes from a shared location with from()', function () {
 it('mixes replay with static fakes using only()', function () {
     Http::replay()
         ->only(['jsonplaceholder.typicode.com/*'])
-        ->fake([
+        ->alsoFake([
             'api.stripe.com/*' => Http::response(['charge' => 'ok'], 200),
         ]);
 
@@ -192,7 +192,7 @@ it('re-records when fresh() is used', function () {
     ]));
 
     // fresh() should delete the old fake and re-record
-    Http::replay()->storeIn('fresh-test')->fresh();
+    Http::replay()->useShared('fresh-test')->fresh();
 
     $response = Http::get('https://jsonplaceholder.typicode.com/posts/3');
 
@@ -238,7 +238,7 @@ it('stores responses in the expected JSON format', function () {
 describe('preventStrayRequests', function () {
     it('replays from shared without making real requests', function () {
         Http::preventStrayRequests();
-        Http::replay()->from('jsonplaceholder');
+        Http::replay()->readFrom('jsonplaceholder');
 
         $response = Http::get('https://jsonplaceholder.typicode.com/posts/1');
 
@@ -247,14 +247,14 @@ describe('preventStrayRequests', function () {
     });
 
     it('throws when shared fakes do not exist and stray requests are prevented', function () {
-        Http::replay()->from('non-existent-shared');
+        Http::replay()->readFrom('non-existent-shared');
         Http::preventStrayRequests();
 
         Http::get('https://jsonplaceholder.typicode.com/posts/1');
     })->throws(\Illuminate\Http\Client\StrayRequestException::class);
 
-    it('throws when storeIn needs real requests but stray requests are prevented', function () {
-        Http::replay()->storeIn('new-feature');
+    it('throws when useShared needs real requests but stray requests are prevented', function () {
+        Http::replay()->useShared('new-feature');
         Http::preventStrayRequests();
 
         Http::get('https://jsonplaceholder.typicode.com/posts/1');
@@ -267,7 +267,7 @@ describe('preventStrayRequests', function () {
 
 describe('using replay in beforeEach', function () {
     beforeEach(function () {
-        Http::replay()->from('jsonplaceholder');
+        Http::replay()->readFrom('jsonplaceholder');
     });
 
     it('serves shared fakes in test one', function () {

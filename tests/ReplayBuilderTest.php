@@ -50,8 +50,8 @@ it('replays stored responses', function () {
     $prop = $reflection->getProperty('initialized');
     $prop->setValue($builder, true);
 
-    $loadDir = $reflection->getProperty('loadDirectory');
-    $loadDir->setValue($builder, $dir);
+    $loadDirs = $reflection->getProperty('loadDirectories');
+    $loadDirs->setValue($builder, [$dir]);
 
     $saveDir = $reflection->getProperty('saveDirectory');
     $saveDir->setValue($builder, $dir);
@@ -82,28 +82,36 @@ it('supports fluent only configuration', function () {
     expect($result)->toBeInstanceOf(ReplayBuilder::class);
 });
 
-it('supports fluent fake configuration', function () {
+it('supports fluent alsoFake configuration', function () {
     $builder = new ReplayBuilder($this->storage);
 
-    $result = $builder->fake([
+    $result = $builder->alsoFake([
         'api.stripe.com/*' => Http::response(['ok' => true]),
     ]);
 
     expect($result)->toBeInstanceOf(ReplayBuilder::class);
 });
 
-it('supports fluent from configuration', function () {
+it('supports fluent readFrom configuration', function () {
     $builder = new ReplayBuilder($this->storage);
 
-    $result = $builder->from('shopify');
+    $result = $builder->readFrom('shopify');
 
     expect($result)->toBeInstanceOf(ReplayBuilder::class);
 });
 
-it('supports fluent storeIn configuration', function () {
+it('supports fluent writeTo configuration', function () {
     $builder = new ReplayBuilder($this->storage);
 
-    $result = $builder->storeIn('shopify');
+    $result = $builder->writeTo('shopify');
+
+    expect($result)->toBeInstanceOf(ReplayBuilder::class);
+});
+
+it('supports fluent useShared configuration', function () {
+    $builder = new ReplayBuilder($this->storage);
+
+    $result = $builder->useShared('shopify');
 
     expect($result)->toBeInstanceOf(ReplayBuilder::class);
 });
@@ -131,7 +139,7 @@ it('supports full fluent chain', function () {
         ->only(['shopify.com/*'])
         ->matchBy('url', 'body_hash')
         ->expireAfter(days: 7)
-        ->fake([
+        ->alsoFake([
             'api.stripe.com/*' => Http::response(['ok' => true]),
         ]);
 
@@ -143,7 +151,7 @@ it('serves static fakes for non-replay URLs when only is set', function () {
 
     $builder
         ->only(['shopify.com/*'])
-        ->fake([
+        ->alsoFake([
             'api.stripe.com/*' => Http::response(['charge' => 'ok'], 200),
         ]);
 
@@ -153,29 +161,23 @@ it('serves static fakes for non-replay URLs when only is set', function () {
     expect($response->json('charge'))->toBe('ok');
 });
 
-it('stores response to shared directory with storeIn', function () {
+it('writes to shared directory with useShared', function () {
     $builder = new ReplayBuilder($this->storage);
-    $builder->storeIn('my-shared');
+    $builder->useShared('my-shared');
 
     $sharedDir = $this->storage->getSharedDirectory('my-shared');
 
-    // Trigger initialization by making a request
-    // Since there are no stored fakes, this would need a real call
-    // We'll verify the directory configuration instead
     $reflection = new ReflectionClass($builder);
-
-    // Trigger initialization
     $init = $reflection->getMethod('initialize');
     $init->invoke($builder);
 
     $saveDir = $reflection->getProperty('saveDirectory');
-
     expect($saveDir->getValue($builder))->toBe($sharedDir);
 });
 
-it('loads from shared directory with from()', function () {
+it('loads from shared directory with readFrom()', function () {
     $builder = new ReplayBuilder($this->storage);
-    $builder->from('my-shared');
+    $builder->readFrom('my-shared');
 
     $sharedDir = $this->storage->getSharedDirectory('my-shared');
 
@@ -183,9 +185,8 @@ it('loads from shared directory with from()', function () {
     $init = $reflection->getMethod('initialize');
     $init->invoke($builder);
 
-    $loadDir = $reflection->getProperty('loadDirectory');
-
-    expect($loadDir->getValue($builder))->toBe($sharedDir);
+    $loadDirs = $reflection->getProperty('loadDirectories');
+    expect($loadDirs->getValue($builder))->toBe([$sharedDir]);
 });
 
 it('deletes stored responses when fresh() is used', function () {
@@ -197,7 +198,7 @@ it('deletes stored responses when fresh() is used', function () {
     expect(File::exists($sharedDir.'/GET_shopify.json'))->toBeTrue();
 
     $builder = new ReplayBuilder($this->storage);
-    $builder->from('shopify')->fresh();
+    $builder->readFrom('shopify')->fresh();
 
     // Trigger initialization which handles fresh
     $reflection = new ReflectionClass($builder);
@@ -205,6 +206,27 @@ it('deletes stored responses when fresh() is used', function () {
     $init->invoke($builder);
 
     expect(File::isDirectory($sharedDir))->toBeFalse();
+});
+
+it('deletes stored responses when REPLAY_FRESH SERVER var is set', function () {
+    $_SERVER['REPLAY_FRESH'] = 'true';
+
+    $sharedDir = $this->storage->getSharedDirectory('shopify');
+    File::ensureDirectoryExists($sharedDir);
+    File::put($sharedDir.'/GET_shopify.json', json_encode(['status' => 200, 'body' => 'old']));
+
+    expect(File::exists($sharedDir.'/GET_shopify.json'))->toBeTrue();
+
+    $builder = new ReplayBuilder($this->storage);
+    $builder->readFrom('shopify');
+
+    $reflection = new ReflectionClass($builder);
+    $init = $reflection->getMethod('initialize');
+    $init->invoke($builder);
+
+    expect(File::isDirectory($sharedDir))->toBeFalse();
+
+    unset($_SERVER['REPLAY_FRESH']);
 });
 
 it('supports for()->matchBy() per-URL configuration', function () {
@@ -233,7 +255,7 @@ it('throws ReplayBailException when bail config is active', function () {
     // Set up the builder as initialized with pending recordings
     $reflection = new ReflectionClass($builder);
     $reflection->getProperty('initialized')->setValue($builder, true);
-    $reflection->getProperty('loadDirectory')->setValue($builder, $dir);
+    $reflection->getProperty('loadDirectories')->setValue($builder, [$dir]);
     $reflection->getProperty('saveDirectory')->setValue($builder, $dir);
     $reflection->getProperty('pendingRecordings')->setValue($builder, ['GET:https://api.example.com/products' => 1]);
 
@@ -256,7 +278,7 @@ it('throws ReplayBailException when --replay-bail flag sets SERVER var', functio
 
     $reflection = new ReflectionClass($builder);
     $reflection->getProperty('initialized')->setValue($builder, true);
-    $reflection->getProperty('loadDirectory')->setValue($builder, $dir);
+    $reflection->getProperty('loadDirectories')->setValue($builder, [$dir]);
     $reflection->getProperty('saveDirectory')->setValue($builder, $dir);
     $reflection->getProperty('pendingRecordings')->setValue($builder, ['GET:https://api.example.com/products' => 1]);
 

@@ -70,7 +70,8 @@
         },
         "pest": {
             "plugins": [
-                "Pikant\\LaravelHttpReplay\\Plugins\\ReplayBailPlugin"
+                "Pikant\\LaravelHttpReplay\\Plugins\\ReplayBailPlugin",
+                "Pikant\\LaravelHttpReplay\\Plugins\\ReplayFreshPlugin"
             ]
         }
     },

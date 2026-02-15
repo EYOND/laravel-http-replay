@@ -3,6 +3,8 @@
 namespace Pikant\LaravelHttpReplay;
 
 use Closure;
+use DateInterval;
+use DateTimeImmutable;
 use Illuminate\Http\Client\Events\ResponseReceived;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\Client\Response;
@@ -14,7 +16,7 @@ use Pikant\LaravelHttpReplay\Exceptions\ReplayBailException;
 class ReplayBuilder
 {
     /** @var list<string|Closure> */
-    protected array $matchByFields = ['http_method', 'url'];
+    protected array $matchByFields = ['method', 'url'];
 
     /** @var list<string>|null */
     protected ?array $onlyPatterns = null;
@@ -22,9 +24,10 @@ class ReplayBuilder
     /** @var array<string, \GuzzleHttp\Promise\PromiseInterface|Closure|int|string> */
     protected array $additionalFakes = [];
 
-    protected ?string $fromName = null;
+    /** @var list<string> */
+    protected array $readFromNames = [];
 
-    protected ?string $storeInName = null;
+    protected ?string $writeToName = null;
 
     protected bool $isFresh = false;
 
@@ -34,7 +37,8 @@ class ReplayBuilder
 
     protected bool $initialized = false;
 
-    protected string $loadDirectory = '';
+    /** @var list<string> */
+    protected array $loadDirectories = [];
 
     protected string $saveDirectory = '';
 
@@ -46,8 +50,6 @@ class ReplayBuilder
 
     /** @var array<string, int> */
     protected array $pendingRecordings = [];
-
-    protected ?string $currentForPattern = null;
 
     /** @var array<string, list<string|Closure>> */
     protected array $perPatternMatchBy = [];
@@ -75,12 +77,7 @@ class ReplayBuilder
      */
     public function matchBy(string|Closure ...$fields): self
     {
-        if ($this->currentForPattern !== null) {
-            $this->perPatternMatchBy[$this->currentForPattern] = array_values($fields);
-            $this->currentForPattern = null;
-        } else {
-            $this->matchByFields = array_values($fields);
-        }
+        $this->matchByFields = array_values($fields);
 
         return $this;
     }
@@ -88,11 +85,17 @@ class ReplayBuilder
     /**
      * Set a URL pattern for per-URL matcher configuration.
      */
-    public function for(string $pattern): self
+    public function for(string $pattern): ForPatternProxy
     {
-        $this->currentForPattern = $pattern;
+        return new ForPatternProxy($this, $pattern);
+    }
 
-        return $this;
+    /**
+     * @param  list<string|Closure>  $fields
+     */
+    public function addPerPatternMatchBy(string $pattern, array $fields): void
+    {
+        $this->perPatternMatchBy[$pattern] = $fields;
     }
 
     /**
@@ -108,23 +111,31 @@ class ReplayBuilder
     /**
      * @param  array<string, \GuzzleHttp\Promise\PromiseInterface|Closure|int|string>  $stubs
      */
-    public function fake(array $stubs): self
+    public function alsoFake(array $stubs): self
     {
         $this->additionalFakes = $stubs;
 
         return $this;
     }
 
-    public function from(string $name): self
+    public function readFrom(string ...$names): self
     {
-        $this->fromName = $name;
+        $this->readFromNames = array_values($names);
 
         return $this;
     }
 
-    public function storeIn(string $name): self
+    public function writeTo(string $name): self
     {
-        $this->storeInName = $name;
+        $this->writeToName = $name;
+
+        return $this;
+    }
+
+    public function useShared(string $name): self
+    {
+        $this->readFromNames = [$name];
+        $this->writeToName = $name;
 
         return $this;
     }
@@ -137,9 +148,14 @@ class ReplayBuilder
         return $this;
     }
 
-    public function expireAfter(int $days): self
+    public function expireAfter(int|DateInterval $days): self
     {
-        $this->expireDays = $days;
+        if ($days instanceof DateInterval) {
+            $now = new DateTimeImmutable;
+            $this->expireDays = (int) ceil(($now->add($days)->getTimestamp() - $now->getTimestamp()) / 86400);
+        } else {
+            $this->expireDays = $days;
+        }
 
         return $this;
     }
@@ -167,56 +183,77 @@ class ReplayBuilder
 
     protected function resolveDirectories(): void
     {
-        if ($this->fromName !== null) {
-            $this->loadDirectory = $this->storage->getSharedDirectory($this->fromName);
-            // When using from() with fresh(), save back to shared (renewal)
-            // Otherwise save to test-specific directory
-            $this->saveDirectory = $this->isFresh
-                ? $this->storage->getSharedDirectory($this->fromName)
-                : $this->storage->getTestDirectory();
-        } elseif ($this->storeInName !== null) {
-            $this->loadDirectory = $this->storage->getSharedDirectory($this->storeInName);
-            $this->saveDirectory = $this->storage->getSharedDirectory($this->storeInName);
+        if ($this->readFromNames !== []) {
+            $this->loadDirectories = array_map(
+                fn (string $name) => $this->storage->getSharedDirectory($name),
+                $this->readFromNames,
+            );
         } else {
-            $this->loadDirectory = $this->storage->getTestDirectory();
+            $this->loadDirectories = [$this->storage->getTestDirectory()];
+        }
+
+        if ($this->writeToName !== null) {
+            $this->saveDirectory = $this->storage->getSharedDirectory($this->writeToName);
+        } else {
             $this->saveDirectory = $this->storage->getTestDirectory();
         }
     }
 
     protected function handleFreshAndExpiry(): void
     {
-        $isFresh = $this->isFresh || config('http-replay.fresh', false);
+        if (! $this->shouldFresh()) {
+            return;
+        }
 
-        if ($isFresh) {
+        foreach ($this->loadDirectories as $dir) {
             if ($this->freshPattern !== null) {
-                $this->storage->deleteByPattern($this->loadDirectory, $this->freshPattern);
+                $this->storage->deleteByPattern($dir, $this->freshPattern);
             } else {
-                $this->storage->deleteDirectory($this->loadDirectory);
+                $this->storage->deleteDirectory($dir);
             }
         }
     }
 
+    /**
+     * Check if fresh mode is active (via fluent API, config, or environment).
+     */
+    protected function shouldFresh(): bool
+    {
+        return $this->isFresh
+            || config('http-replay.fresh', false)
+            || filter_var($_SERVER['REPLAY_FRESH'] ?? false, FILTER_VALIDATE_BOOLEAN);
+    }
+
     protected function loadStoredResponses(): void
     {
-        $stored = $this->storage->findStoredResponses($this->loadDirectory);
+        /** @var array<string, string> $seenFromDir */
+        $seenFromDir = [];
 
-        foreach ($stored as $filename => $data) {
-            // Skip expired responses
-            if ($this->expireDays !== null) {
-                $filepath = $this->loadDirectory.DIRECTORY_SEPARATOR.$filename;
-                if ($this->storage->isExpired($filepath, $this->expireDays)) {
+        foreach ($this->loadDirectories as $dir) {
+            $stored = $this->storage->findStoredResponses($dir);
+
+            foreach ($stored as $filename => $data) {
+                if ($this->expireDays !== null) {
+                    $filepath = $dir.DIRECTORY_SEPARATOR.$filename;
+                    if ($this->storage->isExpired($filepath, $this->expireDays)) {
+                        continue;
+                    }
+                }
+
+                $baseFilename = $this->getBaseFilename($filename);
+
+                // First wins: skip if a previous directory already provided this base filename
+                if (isset($seenFromDir[$baseFilename]) && $seenFromDir[$baseFilename] !== $dir) {
                     continue;
                 }
+                $seenFromDir[$baseFilename] = $dir;
+
+                if (! isset($this->responseQueues[$baseFilename])) {
+                    $this->responseQueues[$baseFilename] = [];
+                }
+
+                $this->responseQueues[$baseFilename][] = $data;
             }
-
-            // Group by base filename (strip __N counter)
-            $baseFilename = $this->getBaseFilename($filename);
-
-            if (! isset($this->responseQueues[$baseFilename])) {
-                $this->responseQueues[$baseFilename] = [];
-            }
-
-            $this->responseQueues[$baseFilename][] = $data;
         }
     }
 

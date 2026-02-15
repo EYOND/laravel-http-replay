@@ -22,7 +22,7 @@ class LaravelHttpReplay
      */
     public function getDefaultMatchBy(): array
     {
-        return config('http-replay.match_by', ['http_method', 'url']);
+        return config('http-replay.match_by', ['method', 'url']);
     }
 
     public function getDefaultExpireAfter(): ?int
@@ -33,7 +33,7 @@ class LaravelHttpReplay
     /**
      * Load a single stored replay file for use in Http::fake().
      */
-    public function get(string $path): \GuzzleHttp\Promise\PromiseInterface
+    public function getShared(string $path): \GuzzleHttp\Promise\PromiseInterface
     {
         $fullPath = $this->getStoragePath()
             .DIRECTORY_SEPARATOR.'_shared'

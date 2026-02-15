@@ -8,8 +8,9 @@ return [
     | Storage Path
     |--------------------------------------------------------------------------
     |
-    | The directory where HTTP replay files are stored. Relative paths are
-    | resolved from the project root (base_path).
+    | The directory where HTTP replay files are stored.
+    | Relative paths are resolved from base_path() (your project root).
+    | Absolute paths (starting with /) are used as-is.
     |
     */
     'storage_path' => 'tests/.laravel-http-replay',
@@ -20,11 +21,12 @@ return [
     |--------------------------------------------------------------------------
     |
     | The default matchers used to generate filenames from requests.
-    | Supported: 'http_method', 'url', 'host', 'subdomain',
-    |            'http_attribute:key', 'body_hash', 'body_hash:key1,key2'
+    | Supported: 'method' (alias: 'http_method'), 'url', 'host', 'subdomain',
+    |            'attribute:key' (alias: 'http_attribute:key'),
+    |            'body_hash', 'body_hash:key1,key2'
     |
     */
-    'match_by' => ['http_method', 'url'],
+    'match_by' => ['method', 'url'],
 
     /*
     |--------------------------------------------------------------------------

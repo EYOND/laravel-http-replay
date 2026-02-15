@@ -82,16 +82,19 @@ class ReplayNamer
             }
 
             $matchers[] = match (true) {
-                $field === 'http_method' => new HttpMethodMatcher,
-                $field === 'method' => new HttpMethodMatcher, // backward compat
+                $field === 'method' => new HttpMethodMatcher,
+                $field === 'http_method' => new HttpMethodMatcher, // alias
                 $field === 'subdomain' => new SubdomainMatcher,
                 $field === 'host' => new HostMatcher,
                 $field === 'url' => new UrlMatcher,
                 $field === 'body_hash' => new BodyHashMatcher,
-                $field === 'body' => new BodyHashMatcher, // backward compat
+                $field === 'body' => new BodyHashMatcher, // alias
+                str_starts_with($field, 'attribute:') => new HttpAttributeMatcher(
+                    substr($field, strlen('attribute:'))
+                ),
                 str_starts_with($field, 'http_attribute:') => new HttpAttributeMatcher(
                     substr($field, strlen('http_attribute:'))
-                ),
+                ), // alias
                 str_starts_with($field, 'body_hash:') => new BodyHashMatcher(
                     explode(',', substr($field, strlen('body_hash:')))
                 ),
