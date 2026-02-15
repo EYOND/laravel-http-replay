@@ -502,7 +502,10 @@ Please review [our security policy](../../security/policy) on how to report secu
 
 ## Credits
 
+This package is an opinionated version of the original idea by [Michael Ruf](https://github.com/michiruf) in [laravel-http-automock](https://github.com/michiruf/laravel-http-automock).
+
 - [Patrick Korber](https://github.com/pikant)
+- [Michael Ruf](https://github.com/michiruf) — original idea
 - [All Contributors](../../contributors)
 
 ## License
