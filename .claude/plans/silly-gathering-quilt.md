@@ -1,393 +1,388 @@
-# Plan: Feedback-Runde — Laravel Http Replay
+# Plan: API-Verbesserungen (TODO.md)
 
 ## Context
 
-Basierend auf dem Praxis-Feedback in `feedback-replay.md` stehen 8 Änderungen an:
-1. Package umbenennen (laravel-easy-http-fake → laravel-http-replay)
-2. API-Naming anpassen (storeAs→storeIn, replay:fresh→replay:prune)
-3. ReplayNamer komplett neu — komposierbare Matcher
-4. Per-URL Konfiguration via `->for()->matchBy()`
-5. `Replay::get()` für einzelne shared Fakes in `Http::fake()`
-6. Bail on CI (Tests failen wenn Replay schreibt)
-7. Test als incomplete markieren wenn Replay schreibt
-8. Storage-Pfad → `tests/.laravel-http-replay`
+Nach dem API-Review in `TODO.md` stehen 8 freigegebene Verbesserungen an. Das Package ist funktional komplett (rename, matcher, bail, incomplete — alles umgesetzt). Diese Runde poliert die öffentliche API für Konsistenz und Klarheit.
 
 ---
 
-## Phase 1: Package Rename
+## 1. REPLAY_FRESH ENV-Parity mit REPLAY_BAIL
 
-Namespace `Pikant\LaravelEasyHttpFake` → `Pikant\LaravelHttpReplay`. Facade wird zu `Replay`.
+**Problem:** `REPLAY_BAIL` kann via `$_SERVER`, Config und `--replay-bail` Flag gesetzt werden, aber `REPLAY_FRESH` nur über Config.
 
-### Datei-Umbenennungen
+### Änderungen
 
-| Alt | Neu |
-|-----|-----|
-| `src/LaravelEasyHttpFake.php` | `src/LaravelHttpReplay.php` |
-| `src/LaravelEasyHttpFakeServiceProvider.php` | `src/LaravelHttpReplayServiceProvider.php` |
-| `src/Facades/LaravelEasyHttpFake.php` | `src/Facades/Replay.php` |
-| `config/easy-http-fake.php` | `config/http-replay.php` |
-
-### Globale Ersetzungen
-
-| Alt | Neu |
-|-----|-----|
-| `Pikant\LaravelEasyHttpFake` | `Pikant\LaravelHttpReplay` |
-| `LaravelEasyHttpFakeServiceProvider` | `LaravelHttpReplayServiceProvider` |
-| `LaravelEasyHttpFake` (Klasse) | `LaravelHttpReplay` |
-| `LaravelEasyHttpFake` (Facade) | `Replay` |
-| `config('easy-http-fake.` | `config('http-replay.` |
-| `'laravel-easy-http-fake'` (Package-Name) | `'laravel-http-replay'` |
-| `pikant/laravel-easy-http-fake` (Composer) | `pikant/laravel-http-replay` |
-
-### Betroffene Dateien (~20)
-- `composer.json` (name, autoload, extra.laravel)
-- Alle `src/*.php` (Namespace)
-- `src/Facades/Replay.php` (Klasse + Accessor)
-- `config/http-replay.php`
-- Alle `tests/*.php` (use-Statements, config-Keys)
-- `tests/Integration/ReplayIntegrationTest.php` (FQCN-Referenzen)
-- `README.md`, `CHANGELOG.md`, `CLAUDE.md`
-- `.github/ISSUE_TEMPLATE/config.yml`
-
-### Storage-Pfad
-- Default: `tests/.http-replays` → `tests/.laravel-http-replay`
-- Bestehende Replay-Dateien im Repo müssen verschoben werden
-- `.gitignore`-Eintrag anpassen falls vorhanden
-
----
-
-## Phase 2: API-Naming
-
-Kleine Umbenennungen:
-
-| Alt | Neu | Dateien |
-|-----|-----|---------|
-| `->storeAs('name')` | `->storeIn('name')` | `ReplayBuilder.php`, Tests |
-| `replay:fresh` | `replay:prune` | `ReplayFreshCommand.php` → `ReplayPruneCommand.php`, ServiceProvider |
-
----
-
-## Phase 3: ReplayNamer — Komposierbare Matcher
-
-### Neue Architektur
-
-Statt der aktuellen if-Leiter wird der Namer aus einzelnen Matchern zusammengesetzt. Jeder Matcher löst einen Teil des Dateinamens auf.
-
-**Neues Interface:** `src/Matchers/NameMatcher.php`
+**`src/ReplayBuilder.php`** — Neue `shouldFresh()` Methode (analog zu `shouldBail()`):
 ```php
-interface NameMatcher
+protected function shouldFresh(): bool
 {
-    public function resolve(Request $request): ?string;
+    return $this->isFresh
+        || config('http-replay.fresh', false)
+        || filter_var($_SERVER['REPLAY_FRESH'] ?? false, FILTER_VALIDATE_BOOLEAN);
 }
 ```
 
-**Neue Matcher-Klassen** in `src/Matchers/`:
+`handleFreshAndExpiry()` Zeile 188 ändern: `$this->isFresh || config(...)` → `$this->shouldFresh()`.
 
-| Matcher | Config-String | Beispiel-Output |
-|---------|--------------|-----------------|
-| `HttpMethodMatcher` | `http_method` | `GET` |
-| `SubdomainMatcher` | `subdomain` | `shop` (von shop.myshopify.com) |
-| `HostMatcher` | `host` | `shop_myshopify_com` |
-| `UrlMatcher` | `url` | `shop_myshopify_com_api_products` (ohne Schema) |
-| `HttpAttributeMatcher` | `http_attribute:key` | Wert von `$request->attributes()['key']`. Dot-Notation: `http_attribute:object.slug` |
-| `BodyHashMatcher` | `body_hash`, `body_hash:query`, `body_hash:query,variables.id` | `a1b2c3` (6-Zeichen Hash). Ohne Key = ganzer Body. Mit Keys = nur diese Felder. |
-| `ClosureMatcher` | `Closure` | Was die Closure zurückgibt (Array von Teilen) |
-
-### Matcher-Parsing in ReplayNamer
-
+**`src/Plugins/ReplayFreshPlugin.php`** — Neues Pest Plugin (Kopie von ReplayBailPlugin):
 ```php
-// matchBy-Config: ['http_method', 'url', 'http_attribute:request_name']
-// → [HttpMethodMatcher, UrlMatcher, HttpAttributeMatcher('request_name')]
-
-public function fromRequest(Request $request, array $matchBy): string
-{
-    $parts = [];
-    foreach ($this->parseMatchers($matchBy) as $matcher) {
-        $resolved = $matcher->resolve($request);
-        if ($resolved !== null && $resolved !== '') {
-            $parts[] = $this->sanitize($resolved);
-        }
-    }
-    return implode('_', $parts) . '.json';
-}
-```
-
-**Leere Werte:** `resolve()` gibt `null` zurück → wird übersprungen → keine `___` im Dateinamen.
-
-### Default-Matcher
-
-Config `match_by` Default bleibt `['http_method', 'url']` (vorher `['url', 'method']` → umbenennen für Konsistenz mit neuen Matcher-Namen).
-
-### Closure-Matcher Signatur
-
-```php
-Http::replay()->matchBy(
-    'http_method',
-    fn(Request $r): array => [
-        $r->data()['operationName'] ?? 'unknown',
-        $r->data()['variables']['id'] ?? '',
-    ],
-);
-```
-
-Die Closure gibt ein `array` von Filename-Teilen zurück. Leere Strings werden übersprungen.
-
-### Backward Compatibility
-
-Die alten String-Werte `'url'`, `'method'`, `'body'` werden auf die neuen Matcher gemappt:
-- `'url'` → `UrlMatcher`
-- `'method'` → `HttpMethodMatcher`
-- `'body'` → `BodyHashMatcher` (ganzer Body)
-
-### Anpassungen in ReplayBuilder
-
-- `recordingKey()` muss die gleiche Matcher-Logik verwenden wie der Namer (damit pending recordings korrekt zugeordnet werden)
-- `getBaseFilename()` für Counter-Stripping bleibt unverändert
-
----
-
-## Phase 4: Per-URL Konfiguration via `->for()->matchBy()`
-
-### API
-
-```php
-Http::replay()
-    ->for('myshopify.com/*')->matchBy('url', 'http_attribute:request_name', 'http_attribute:request_id')
-    ->for('reybex.com/*')->matchBy('http_method', 'url');
-```
-
-### Implementierung in ReplayBuilder
-
-```php
-protected ?string $currentForPattern = null;
-
-/** @var array<string, list<string|Closure>> */
-protected array $perPatternMatchBy = [];
-
-public function for(string $pattern): self
-{
-    $this->currentForPattern = $pattern;
-    return $this;
-}
-
-public function matchBy(string|Closure ...$fields): self
-{
-    if ($this->currentForPattern !== null) {
-        $this->perPatternMatchBy[$this->currentForPattern] = array_values($fields);
-        $this->currentForPattern = null;
-    } else {
-        $this->matchByFields = array_values($fields);
-    }
-    return $this;
-}
-```
-
-### Matcher-Auflösung pro Request
-
-In `handleRequest()` und `handleResponseReceived()`:
-```php
-protected function resolveMatchBy(Request $request): array
-{
-    foreach ($this->perPatternMatchBy as $pattern => $matchBy) {
-        if (Str::is(Str::start($pattern, '*'), $request->url())) {
-            return $matchBy;
-        }
-    }
-    return $this->matchByFields; // Global default
-}
-```
-
-Der `ReplayNamer` bekommt die aufgelösten `matchBy`-Felder pro Request statt sie im Constructor zu setzen.
-
----
-
-## Phase 5: `Replay::get()` Facade
-
-### API
-
-```php
-Http::fake([
-    'foo.com/posts/*' => Replay::get('fresh-test/GET_jsonplaceholder_typicode_com_posts_3.json'),
-]);
-```
-
-### Implementierung
-
-Die `Replay`-Facade (umbenannte `LaravelEasyHttpFake`) bekommt eine `get()`-Methode auf der Hauptklasse `LaravelHttpReplay`:
-
-```php
-// src/LaravelHttpReplay.php
-public function get(string $path): \GuzzleHttp\Promise\PromiseInterface
-{
-    $fullPath = $this->getStoragePath()
-        . DIRECTORY_SEPARATOR . '_shared'
-        . DIRECTORY_SEPARATOR . $path;
-
-    $content = File::get($fullPath);
-    $data = json_decode($content, true);
-
-    return (new ResponseSerializer)->deserialize($data);
-}
-```
-
-Sucht in `{storage_path}/_shared/{path}`. Gibt ein `PromiseInterface` zurück (kompatibel mit `Http::fake()`).
-
----
-
-## Phase 6: Bail on CI
-
-### Konzept
-
-Wenn `REPLAY_BAIL=true` gesetzt ist, soll der Test **failen** wenn Replay versucht eine Datei zu schreiben. Das verhindert, dass in CI versehentlich neue Fakes angelegt werden.
-
-### Implementierung
-
-Drei Wege zum Aktivieren — Pest CLI Flag, ENV oder Config:
-
-**1. Pest Plugin** (`src/Plugins/ReplayBailPlugin.php`):
-
-Pest erlaubt custom CLI-Flags über das `HandlesArguments`-Interface. Plugin-Registrierung via `composer.json`:
-
-```php
-class ReplayBailPlugin implements HandlesArguments
+final class ReplayFreshPlugin implements HandlesArguments
 {
     use HandleArguments;
 
     public function handleArguments(array $arguments): array
     {
-        if ($this->hasArgument('--replay-bail', $arguments)) {
-            $arguments = $this->popArgument('--replay-bail', $arguments);
-            config()->set('http-replay.bail', true);
+        if (! $this->hasArgument('--replay-fresh', $arguments)) {
+            return $arguments;
         }
+        $arguments = $this->popArgument('--replay-fresh', $arguments);
+        $_SERVER['REPLAY_FRESH'] = 'true';
+        $_ENV['REPLAY_FRESH'] = 'true';
         return $arguments;
     }
 }
 ```
 
-```json
-// composer.json
-"extra": {
-    "pest": {
-        "plugins": ["Pikant\\LaravelHttpReplay\\Plugins\\ReplayBailPlugin"]
+**`composer.json`** — Plugin registrieren in `extra.pest.plugins`.
+
+**Tests:** `tests/ReplayFreshPluginTest.php` (analog zu `tests/ReplayBailPluginTest.php`).
+
+**README.md** — Abschnitt "Renewal / Re-Recording" erweitern um `--replay-fresh` und `REPLAY_FRESH=true`.
+
+---
+
+## 2. Kürzere Matcher-Namen
+
+**Problem:** `http_method` und `http_attribute:key` sind redundant lang im HTTP-Kontext.
+
+### Änderungen
+
+**`src/ReplayNamer.php`** `parseMatchers()` — Neue Kurzformen als primär, lange als Alias:
+
+```php
+$field === 'method' => new HttpMethodMatcher,       // primary (kurz)
+$field === 'http_method' => new HttpMethodMatcher,   // alias (lang)
+str_starts_with($field, 'attribute:') => new HttpAttributeMatcher(
+    substr($field, strlen('attribute:'))
+),                                                    // primary (kurz)
+str_starts_with($field, 'http_attribute:') => new HttpAttributeMatcher(
+    substr($field, strlen('http_attribute:'))
+),                                                    // alias (lang)
+```
+
+Reihenfolge der match-Arms beachten: `'method'` muss vor `str_starts_with($field, 'method')` stehen (kein Konflikt, da kein prefix-Match auf 'method' existiert).
+
+**`src/ReplayBuilder.php`** `recordingKey()` Zeile 358 — `'body'` Alias bleibt, `'body_hash'` bleibt. Kein Handlungsbedarf (kein `http_method`/`http_attribute` Check in recordingKey).
+
+**`config/http-replay.php`** — Default `match_by` bleibt `['http_method', 'url']`. Dokumentation erweitern um Kurzformen.
+
+**README.md** — Matcher-Tabelle aktualisieren: Kurzformen als primär, `http_method`/`http_attribute` als "(alias)".
+
+---
+
+## 3. `for()` Proxy-Objekt gegen State-Leak
+
+**Problem:** `for('x')` setzt `$currentForPattern`. Wenn danach kein `matchBy()` folgt, leakt der State zum nächsten Aufruf.
+
+### Änderungen
+
+**Neue Datei `src/ForPatternProxy.php`:**
+```php
+class ForPatternProxy
+{
+    public function __construct(
+        protected ReplayBuilder $builder,
+        protected string $pattern,
+    ) {}
+
+    /** @param string|Closure ...$fields */
+    public function matchBy(string|Closure ...$fields): ReplayBuilder
+    {
+        $this->builder->addPerPatternMatchBy($this->pattern, array_values($fields));
+        return $this->builder;
     }
 }
 ```
 
-**2. Config** (`config/http-replay.php`):
-```php
-'bail' => env('REPLAY_BAIL', false),
-```
+**`src/ReplayBuilder.php`:**
+- `for()` gibt `ForPatternProxy` zurück statt `$this`:
+  ```php
+  public function for(string $pattern): ForPatternProxy
+  {
+      return new ForPatternProxy($this, $pattern);
+  }
+  ```
+- `$currentForPattern` Property entfernen
+- Neuer public Helper für den Proxy:
+  ```php
+  /** @param list<string|Closure> $fields */
+  public function addPerPatternMatchBy(string $pattern, array $fields): void
+  {
+      $this->perPatternMatchBy[$pattern] = $fields;
+  }
+  ```
+- `matchBy()` vereinfacht — kein `$currentForPattern`-Check mehr:
+  ```php
+  public function matchBy(string|Closure ...$fields): self
+  {
+      $this->matchByFields = array_values($fields);
+      return $this;
+  }
+  ```
 
-**3. In ReplayBuilder.handleResponseReceived():**
-```php
-if (config('http-replay.bail', false)) {
-    throw new ReplayBailException(
-        "Http Replay attempted to write [$filename] but bail mode is active. "
-        . "Run tests locally to record new fakes."
-    );
-}
-```
-
-**Neue Exception:** `src/Exceptions/ReplayBailException.php` (extends `\RuntimeException`)
-
-**Anwendung in CI (alle drei Varianten):**
-```bash
-# Pest Flag (bevorzugt)
-vendor/bin/pest --replay-bail
-
-# Environment Variable
-REPLAY_BAIL=true vendor/bin/pest
-
-# phpunit.xml
-<php><env name="REPLAY_BAIL" value="true"/></php>
-```
-
----
-
-## Phase 7: Test als Incomplete markieren
-
-### Konzept
-
-Wenn Replay innerhalb eines Tests neue Daten schreibt, soll der Test als "incomplete" (gelb) markiert werden — genau wie bei `expect()->toMatchSnapshot()`.
-
-### Mechanismus (von Pest übernommen)
-
-Pest nutzt `TestSuite::getInstance()->registerSnapshotChange($message)`. Diese public Methode fügt eine Nachricht zum `$__snapshotChanges`-Array des Tests hinzu. Ein `#[PostCondition]`-Hook in Pest's `Testable`-Trait ruft danach `markTestIncomplete()` auf.
-
-**Wir piggybacen auf diesem Mechanismus.** In `ReplayBuilder.handleResponseReceived()` nach dem Schreiben:
-
-```php
-use Pest\TestSuite;
-
-// Nach erfolgreichem Speichern:
-if (class_exists(TestSuite::class)) {
-    TestSuite::getInstance()->registerSnapshotChange(
-        "Http replay recorded at [{$this->saveDirectory}/{$filename}]"
-    );
-}
-```
-
-Das ist alles — Pest's bestehender PostCondition-Hook erledigt den Rest. Der Test wird gelb mit der Nachricht wo die Datei gespeichert wurde.
+**Tests:** Bestehende `for()->matchBy()` Tests funktionieren weiter. Neuer Test: `for('x')->only(...)` ist Compile-Error (Methode existiert nicht auf Proxy).
 
 ---
 
-## Phase 8: Config-Datei aktualisieren
+## 4. `readFrom()` / `writeTo()` / `useShared()`
 
+**Problem:** `from()` und `storeIn()` sind asymmetrisch. `from()` liest shared, schreibt test-lokal. `storeIn()` liest+schreibt shared. Nicht intuitiv.
+
+### Neue API
+
+| Methode | Liest aus | Schreibt nach |
+|---------|-----------|---------------|
+| `readFrom('a', 'b')` | shared/a, shared/b (first wins) | test-spezifisch |
+| `writeTo('x')` | test-spezifisch | shared/x |
+| `useShared('name')` | shared/name | shared/name |
+| `readFrom('a')->writeTo('x')` | shared/a | shared/x |
+
+### Änderungen
+
+**`src/ReplayBuilder.php`:**
+- Properties ersetzen:
+  ```php
+  // Alt:
+  protected ?string $fromName = null;
+  protected ?string $storeInName = null;
+
+  // Neu:
+  /** @var list<string> */
+  protected array $readFromNames = [];
+  protected ?string $writeToName = null;
+  ```
+
+- Neue Methoden:
+  ```php
+  public function readFrom(string ...$names): self
+  {
+      $this->readFromNames = array_values($names);
+      return $this;
+  }
+
+  public function writeTo(string $name): self
+  {
+      $this->writeToName = $name;
+      return $this;
+  }
+
+  public function useShared(string $name): self
+  {
+      $this->readFromNames = [$name];
+      $this->writeToName = $name;
+      return $this;
+  }
+  ```
+
+- `from()` und `storeIn()` entfernen (kein Backward-Compat nötig — Package ist noch nicht stable released).
+
+- `resolveDirectories()` refactoren:
+  ```php
+  protected function resolveDirectories(): void
+  {
+      // Load directories (can be multiple for readFrom)
+      if ($this->readFromNames !== []) {
+          $this->loadDirectories = array_map(
+              fn (string $name) => $this->storage->getSharedDirectory($name),
+              $this->readFromNames,
+          );
+      } else {
+          $this->loadDirectories = [$this->storage->getTestDirectory()];
+      }
+
+      // Save directory
+      if ($this->writeToName !== null) {
+          $this->saveDirectory = $this->storage->getSharedDirectory($this->writeToName);
+      } else {
+          $this->saveDirectory = $this->storage->getTestDirectory();
+      }
+  }
+  ```
+
+- Property `loadDirectory` (string) → `loadDirectories` (array):
+  ```php
+  /** @var list<string> */
+  protected array $loadDirectories = [];
+  ```
+
+- `loadStoredResponses()` über mehrere Directories iterieren (first wins):
+  ```php
+  protected function loadStoredResponses(): void
+  {
+      // Track which dir first provided a baseFilename
+      $seenFromDir = [];
+
+      foreach ($this->loadDirectories as $dir) {
+          $stored = $this->storage->findStoredResponses($dir);
+          foreach ($stored as $filename => $data) {
+              if ($this->expireDays !== null) {
+                  $filepath = $dir . DIRECTORY_SEPARATOR . $filename;
+                  if ($this->storage->isExpired($filepath, $this->expireDays)) {
+                      continue;
+                  }
+              }
+
+              $baseFilename = $this->getBaseFilename($filename);
+
+              // First wins: skip if a previous directory already provided this base filename
+              // (but allow __2, __3 etc from the same directory for sequential calls)
+              if (isset($seenFromDir[$baseFilename]) && $seenFromDir[$baseFilename] !== $dir) {
+                  continue;
+              }
+              $seenFromDir[$baseFilename] = $dir;
+
+              if (! isset($this->responseQueues[$baseFilename])) {
+                  $this->responseQueues[$baseFilename] = [];
+              }
+              $this->responseQueues[$baseFilename][] = $data;
+          }
+      }
+  }
+  ```
+
+- `handleFreshAndExpiry()` muss über `$this->loadDirectories` iterieren:
+  ```php
+  protected function handleFreshAndExpiry(): void
+  {
+      if (! $this->shouldFresh()) {
+          return;
+      }
+      foreach ($this->loadDirectories as $dir) {
+          if ($this->freshPattern !== null) {
+              $this->storage->deleteByPattern($dir, $this->freshPattern);
+          } else {
+              $this->storage->deleteDirectory($dir);
+          }
+      }
+  }
+  ```
+
+**Tests:** Bestehende `from()`/`storeIn()` Tests auf neue API umschreiben. Neue Tests für `readFrom()` mit mehreren Directories und "first wins" Verhalten.
+
+**README.md** — Shared Fakes Abschnitt komplett aktualisieren.
+
+---
+
+## 5. `fake()` → `alsoFake()`
+
+**Problem:** `fake()` auf ReplayBuilder kollidiert konzeptionell mit `Http::fake()`.
+
+### Änderungen
+
+**`src/ReplayBuilder.php`:**
+- Methode umbenennen: `fake()` → `alsoFake()`
+- Property bleibt `$additionalFakes` (intern unverändert)
+
+**Tests + README.md** — Alle `->fake([...])` → `->alsoFake([...])`.
+
+---
+
+## 6. `expireAfter()` mit DateInterval
+
+**Problem:** Nur `int $days` — nicht Laravel-typisch.
+
+### Änderungen
+
+**`src/ReplayBuilder.php`:**
 ```php
-// config/http-replay.php
-return [
-    'storage_path' => 'tests/.laravel-http-replay',
-    'match_by' => ['http_method', 'url'],
-    'expire_after' => null,
-    'fresh' => false,
-    'bail' => false,
-];
+public function expireAfter(int|DateInterval $ttl): self
+{
+    if ($ttl instanceof DateInterval) {
+        // Convert to total days (rounded up)
+        $now = new DateTimeImmutable();
+        $this->expireDays = (int) ceil($now->add($ttl)->getTimestamp() - $now->getTimestamp()) / 86400);
+    } else {
+        $this->expireDays = $ttl;
+    }
+    return $this;
+}
 ```
+
+Import: `use DateInterval; use DateTimeImmutable;`
+
+Named parameter `days:` funktioniert weiter: `expireAfter(days: 7)`.
+
+**README.md** — Beispiel ergänzen: `expireAfter(new DateInterval('P1M'))` oder `expireAfter(CarbonInterval::month())`.
+
+---
+
+## 7. Config `storage_path` Dokumentation
+
+**Problem:** Unklar, dass relative Pfade von `base_path()` aufgelöst werden.
+
+### Änderungen
+
+**`config/http-replay.php`** — Kommentar erweitern:
+```php
+/*
+|--------------------------------------------------------------------------
+| Storage Path
+|--------------------------------------------------------------------------
+|
+| The directory where HTTP replay files are stored.
+| Relative paths are resolved from base_path() (your project root).
+| Absolute paths (starting with /) are used as-is.
+|
+*/
+'storage_path' => 'tests/.laravel-http-replay',
+```
+
+**README.md** — Im Configuration-Abschnitt Hinweis ergänzen.
+
+---
+
+## 8. `Replay::get()` → `Replay::getShared()`
+
+**Problem:** `get()` funktioniert nur für shared Fakes — der Name suggeriert Allgemeinheit.
+
+### Änderungen
+
+**`src/LaravelHttpReplay.php`:**
+- `get()` → `getShared()` umbenennen
+
+**`src/Facades/Replay.php`** — Keine Änderung nötig (Facade proxied dynamisch).
+
+**Tests + README.md** — Alle `Replay::get(...)` → `Replay::getShared(...)`.
 
 ---
 
 ## Implementierungs-Reihenfolge
 
-1. **Package Rename** (Phase 1 + 2) — Sauberer Schnitt zuerst
-2. **Matcher-Architektur** (Phase 3) — NameMatcher Interface + alle Matcher-Klassen + ReplayNamer Refactoring
-3. **Per-URL Config** (Phase 4) — `for()->matchBy()` auf ReplayBuilder
-4. **Replay::get()** (Phase 5) — Methode auf Hauptklasse
-5. **Bail + Incomplete** (Phase 6 + 7) — ReplayBuilder-Hooks
-6. **Tests** für alle Phasen
+1. **Matcher-Namen** (#2) — Schnell, kein Refactoring
+2. **`alsoFake()`** (#5) — Einfaches Rename
+3. **`Replay::getShared()`** (#8) — Einfaches Rename
+4. **REPLAY_FRESH Parity** (#1) — Plugin + shouldFresh()
+5. **`for()` Proxy** (#3) — Neue Klasse, Builder-Refactoring
+6. **`readFrom`/`writeTo`/`useShared`** (#4) — Größtes Refactoring
+7. **`expireAfter` DateInterval** (#6) — Kleine Erweiterung
+8. **Config-Doku** (#7) — Nur Kommentare/README
+9. **README.md** — Alle API-Änderungen dokumentieren
 
-## Dateiübersicht
+## Betroffene Dateien
 
-### Neue Dateien
-- `src/Matchers/NameMatcher.php` (Interface)
-- `src/Matchers/HttpMethodMatcher.php`
-- `src/Matchers/SubdomainMatcher.php`
-- `src/Matchers/HostMatcher.php`
-- `src/Matchers/UrlMatcher.php`
-- `src/Matchers/HttpAttributeMatcher.php`
-- `src/Matchers/BodyHashMatcher.php`
-- `src/Matchers/ClosureMatcher.php`
-- `src/Plugins/ReplayBailPlugin.php` (Pest Plugin für --replay-bail)
-- `src/Exceptions/ReplayBailException.php`
-- Tests für alle neuen Matcher
-
-### Umbenannte Dateien
-- `src/LaravelEasyHttpFake.php` → `src/LaravelHttpReplay.php`
-- `src/LaravelEasyHttpFakeServiceProvider.php` → `src/LaravelHttpReplayServiceProvider.php`
-- `src/Facades/LaravelEasyHttpFake.php` → `src/Facades/Replay.php`
-- `src/Commands/ReplayFreshCommand.php` → `src/Commands/ReplayPruneCommand.php`
-- `config/easy-http-fake.php` → `config/http-replay.php`
-- `tests/.http-replays/` → `tests/.laravel-http-replay/`
-
-### Geänderte Dateien
-- `composer.json` (name, namespaces, aliases)
-- `src/ReplayBuilder.php` (for/matchBy, bail, incomplete, storeAs→storeIn)
-- `src/ReplayNamer.php` (komplett refactored — Matcher-basiert)
-- `src/ReplayStorage.php` (Namespace)
-- `src/ResponseSerializer.php` (Namespace)
-- Alle Test-Dateien (Namespaces, Config-Keys, API-Änderungen)
-- `README.md`, `CLAUDE.md`, `CHANGELOG.md`
-
----
+| Datei | Änderungen |
+|-------|-----------|
+| `src/ReplayBuilder.php` | #1 shouldFresh, #3 for() Proxy, #4 readFrom/writeTo/useShared, #5 alsoFake, #6 DateInterval |
+| `src/ReplayNamer.php` | #2 Kurzformen |
+| `src/LaravelHttpReplay.php` | #8 getShared |
+| `src/ForPatternProxy.php` | #3 **NEU** |
+| `src/Plugins/ReplayFreshPlugin.php` | #1 **NEU** |
+| `config/http-replay.php` | #2 Matcher-Doku, #7 storage_path Doku |
+| `composer.json` | #1 Plugin registrieren |
+| `tests/ReplayBuilderTest.php` | #1, #3, #4, #5, #6 |
+| `tests/ReplayFreshPluginTest.php` | #1 **NEU** |
+| `tests/Integration/ReplayIntegrationTest.php` | #4, #5 |
+| `README.md` | Alle Punkte |
 
 ## Verifikation
 
@@ -396,10 +391,4 @@ return [
 composer test                # Alle Tests grün
 composer analyse             # PHPStan level 5
 composer format              # Pint Formatting
-
-# Integration testen:
-# 1. Tests laufen lassen → Replay-Dateien in tests/.laravel-http-replay/
-# 2. Nochmal laufen → kein Netzwerk, Dateien unverändert (git diff leer)
-# 3. REPLAY_BAIL=true vendor/bin/pest → Test failt wenn geschrieben wird
-# 4. Frischen Test schreiben → gelb/incomplete markiert
 ```
