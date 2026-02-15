@@ -34,6 +34,16 @@ composer format              # Run Laravel Pint code formatter
 - **README.md** is the user-facing documentation. Any change to the package's public API, configuration, CLI flags, or usage patterns **must** be reflected in `README.md`.
 - **`resources/boost/skills/http-replay-testing/SKILL.md`** is the Laravel Boost skill for AI agents. It must be kept in sync with `README.md` — any API, config, or usage change that updates the README must also update the skill.
 
+## Workflow
+
+After completing a change, always print a ready-to-use commit snippet for the user:
+
+```
+git add . && git commit -m "Concise commit message describing the change"
+```
+
+Do not run the commit yourself — just print the snippet so the user can review and execute it.
+
 ## Code Quality
 
 - **PHPStan** at level 5 with Larastan, Octane compatibility, and model property checks enabled
