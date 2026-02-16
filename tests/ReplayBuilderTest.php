@@ -1,9 +1,9 @@
 <?php
 
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Http;
 use EYOND\LaravelHttpReplay\ReplayBuilder;
 use EYOND\LaravelHttpReplay\ReplayStorage;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
     $this->tempDir = sys_get_temp_dir().'/http-replays-builder-'.uniqid();

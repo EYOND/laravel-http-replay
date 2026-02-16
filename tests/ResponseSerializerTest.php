@@ -1,7 +1,7 @@
 <?php
 
-use Illuminate\Support\Facades\Http;
 use EYOND\LaravelHttpReplay\ResponseSerializer;
+use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
     $this->serializer = new ResponseSerializer;

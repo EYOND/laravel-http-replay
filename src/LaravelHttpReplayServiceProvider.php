@@ -2,8 +2,8 @@
 
 namespace EYOND\LaravelHttpReplay;
 
-use Illuminate\Http\Client\Factory;
 use EYOND\LaravelHttpReplay\Commands\ReplayPruneCommand;
+use Illuminate\Http\Client\Factory;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 

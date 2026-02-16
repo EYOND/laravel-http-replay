@@ -5,13 +5,13 @@ namespace EYOND\LaravelHttpReplay;
 use Closure;
 use DateInterval;
 use DateTimeImmutable;
+use EYOND\LaravelHttpReplay\Exceptions\ReplayBailException;
 use Illuminate\Http\Client\Events\ResponseReceived;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
-use EYOND\LaravelHttpReplay\Exceptions\ReplayBailException;
 
 class ReplayBuilder
 {

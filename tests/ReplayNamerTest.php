@@ -1,7 +1,7 @@
 <?php
 
-use Illuminate\Support\Facades\Http;
 use EYOND\LaravelHttpReplay\ReplayNamer;
+use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
     $this->namer = new ReplayNamer;

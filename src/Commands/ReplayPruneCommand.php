@@ -2,9 +2,9 @@
 
 namespace EYOND\LaravelHttpReplay\Commands;
 
+use EYOND\LaravelHttpReplay\ReplayStorage;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
-use EYOND\LaravelHttpReplay\ReplayStorage;
 
 class ReplayPruneCommand extends Command
 {

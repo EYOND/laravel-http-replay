@@ -1,7 +1,7 @@
 <?php
 
-use Illuminate\Support\Facades\File;
 use EYOND\LaravelHttpReplay\ReplayStorage;
+use Illuminate\Support\Facades\File;
 
 beforeEach(function () {
     $this->tempDir = sys_get_temp_dir().'/http-replays-test-'.uniqid();
