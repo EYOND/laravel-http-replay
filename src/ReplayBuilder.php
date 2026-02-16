@@ -1,6 +1,6 @@
 <?php
 
-namespace Pikant\LaravelHttpReplay;
+namespace EYOND\LaravelHttpReplay;
 
 use Closure;
 use DateInterval;
@@ -11,7 +11,7 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
-use Pikant\LaravelHttpReplay\Exceptions\ReplayBailException;
+use EYOND\LaravelHttpReplay\Exceptions\ReplayBailException;
 
 class ReplayBuilder
 {

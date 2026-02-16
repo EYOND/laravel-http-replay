@@ -16,7 +16,7 @@
     backupStaticProperties="false"
 >
     <testsuites>
-        <testsuite name="Pikant Test Suite">
+        <testsuite name="EYOND Test Suite">
             <directory>tests</directory>
         </testsuite>
     </testsuites>

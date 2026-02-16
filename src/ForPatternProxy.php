@@ -1,6 +1,6 @@
 <?php
 
-namespace Pikant\LaravelHttpReplay;
+namespace EYOND\LaravelHttpReplay;
 
 use Closure;
 

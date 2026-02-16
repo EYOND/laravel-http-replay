@@ -72,7 +72,7 @@ it('disambiguates same-URL requests via withAttributes', function () {
     expect($post2->json('id'))->toBe(2);
 
     // Verify the files are named after the attributes
-    $dir = (new \Pikant\LaravelHttpReplay\ReplayStorage)->getTestDirectory();
+    $dir = (new \EYOND\LaravelHttpReplay\ReplayStorage)->getTestDirectory();
     expect(File::exists($dir.'/first_post.json'))->toBeTrue();
     expect(File::exists($dir.'/second_post.json'))->toBeTrue();
 });
@@ -100,7 +100,7 @@ it('disambiguates same-URL requests via matchBy body', function () {
     expect($response2->json('title'))->toBe('Post B');
 
     // Verify two distinct files with body hashes exist
-    $dir = (new \Pikant\LaravelHttpReplay\ReplayStorage)->getTestDirectory();
+    $dir = (new \EYOND\LaravelHttpReplay\ReplayStorage)->getTestDirectory();
     $files = collect(File::files($dir))->map->getFilename()->all();
 
     expect($files)->toHaveCount(2);
@@ -119,7 +119,7 @@ it('stores fakes to a shared location with useShared', function () {
     expect($response->json('id'))->toBe(1);
 
     // Verify shared directory was created
-    $sharedDir = (new \Pikant\LaravelHttpReplay\ReplayStorage)->getSharedDirectory('jsonplaceholder');
+    $sharedDir = (new \EYOND\LaravelHttpReplay\ReplayStorage)->getSharedDirectory('jsonplaceholder');
     expect(File::isDirectory($sharedDir))->toBeTrue();
     expect(File::files($sharedDir))->not->toBeEmpty();
 });
@@ -174,7 +174,7 @@ it('replays non-expired responses with expireAfter', function () {
 
 it('re-records when fresh() is used', function () {
     // Use a dedicated shared location so we don't destroy other tests' fakes
-    $storage = new \Pikant\LaravelHttpReplay\ReplayStorage;
+    $storage = new \EYOND\LaravelHttpReplay\ReplayStorage;
     $freshDir = $storage->getSharedDirectory('fresh-test');
 
     // Pre-populate with a stale fake
@@ -214,7 +214,7 @@ it('stores responses in the expected JSON format', function () {
 
     Http::get('https://jsonplaceholder.typicode.com/posts/1');
 
-    $dir = (new \Pikant\LaravelHttpReplay\ReplayStorage)->getTestDirectory();
+    $dir = (new \EYOND\LaravelHttpReplay\ReplayStorage)->getTestDirectory();
     $files = File::files($dir);
 
     expect($files)->not->toBeEmpty();

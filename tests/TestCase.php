@@ -1,9 +1,9 @@
 <?php
 
-namespace Pikant\LaravelHttpReplay\Tests;
+namespace EYOND\LaravelHttpReplay\Tests;
 
 use Orchestra\Testbench\TestCase as Orchestra;
-use Pikant\LaravelHttpReplay\LaravelHttpReplayServiceProvider;
+use EYOND\LaravelHttpReplay\LaravelHttpReplayServiceProvider;
 
 class TestCase extends Orchestra
 {

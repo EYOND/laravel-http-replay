@@ -1,17 +1,17 @@
 <?php
 
-namespace Pikant\LaravelHttpReplay;
+namespace EYOND\LaravelHttpReplay;
 
 use Closure;
 use Illuminate\Http\Client\Request;
-use Pikant\LaravelHttpReplay\Matchers\BodyHashMatcher;
-use Pikant\LaravelHttpReplay\Matchers\ClosureMatcher;
-use Pikant\LaravelHttpReplay\Matchers\HostMatcher;
-use Pikant\LaravelHttpReplay\Matchers\HttpAttributeMatcher;
-use Pikant\LaravelHttpReplay\Matchers\HttpMethodMatcher;
-use Pikant\LaravelHttpReplay\Matchers\NameMatcher;
-use Pikant\LaravelHttpReplay\Matchers\SubdomainMatcher;
-use Pikant\LaravelHttpReplay\Matchers\UrlMatcher;
+use EYOND\LaravelHttpReplay\Matchers\BodyHashMatcher;
+use EYOND\LaravelHttpReplay\Matchers\ClosureMatcher;
+use EYOND\LaravelHttpReplay\Matchers\HostMatcher;
+use EYOND\LaravelHttpReplay\Matchers\HttpAttributeMatcher;
+use EYOND\LaravelHttpReplay\Matchers\HttpMethodMatcher;
+use EYOND\LaravelHttpReplay\Matchers\NameMatcher;
+use EYOND\LaravelHttpReplay\Matchers\SubdomainMatcher;
+use EYOND\LaravelHttpReplay\Matchers\UrlMatcher;
 
 class ReplayNamer
 {

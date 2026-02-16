@@ -1,12 +1,12 @@
 {
-    "name": "pikant/laravel-http-replay",
+    "name": "eyond/laravel-http-replay",
     "description": "Record and replay HTTP responses in your Laravel/Pest tests",
     "keywords": [
-        "pikant",
+        "eyond",
         "laravel",
         "laravel-http-replay"
     ],
-    "homepage": "https://github.com/pikant/laravel-http-replay",
+    "homepage": "https://github.com/eyond/laravel-http-replay",
     "license": "MIT",
     "authors": [
         {
@@ -35,12 +35,12 @@
     },
     "autoload": {
         "psr-4": {
-            "Pikant\\LaravelHttpReplay\\": "src/"
+            "EYOND\\LaravelHttpReplay\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Pikant\\LaravelHttpReplay\\Tests\\": "tests/",
+            "EYOND\\LaravelHttpReplay\\Tests\\": "tests/",
             "Workbench\\App\\": "workbench/app/"
         }
     },
@@ -62,16 +62,16 @@
     "extra": {
         "laravel": {
             "providers": [
-                "Pikant\\LaravelHttpReplay\\LaravelHttpReplayServiceProvider"
+                "EYOND\\LaravelHttpReplay\\LaravelHttpReplayServiceProvider"
             ],
             "aliases": {
-                "Replay": "Pikant\\LaravelHttpReplay\\Facades\\Replay"
+                "Replay": "EYOND\\LaravelHttpReplay\\Facades\\Replay"
             }
         },
         "pest": {
             "plugins": [
-                "Pikant\\LaravelHttpReplay\\Plugins\\ReplayBailPlugin",
-                "Pikant\\LaravelHttpReplay\\Plugins\\ReplayFreshPlugin"
+                "EYOND\\LaravelHttpReplay\\Plugins\\ReplayBailPlugin",
+                "EYOND\\LaravelHttpReplay\\Plugins\\ReplayFreshPlugin"
             ]
         }
     },

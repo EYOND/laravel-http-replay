@@ -2,8 +2,8 @@
 
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
-use Pikant\LaravelHttpReplay\ReplayBuilder;
-use Pikant\LaravelHttpReplay\ReplayStorage;
+use EYOND\LaravelHttpReplay\ReplayBuilder;
+use EYOND\LaravelHttpReplay\ReplayStorage;
 
 beforeEach(function () {
     $this->tempDir = sys_get_temp_dir().'/http-replays-builder-'.uniqid();
@@ -266,7 +266,7 @@ it('throws ReplayBailException when bail config is active', function () {
 
     $method = $reflection->getMethod('handleResponseReceived');
     $method->invoke($builder, $request, $response);
-})->throws(\Pikant\LaravelHttpReplay\Exceptions\ReplayBailException::class);
+})->throws(\EYOND\LaravelHttpReplay\Exceptions\ReplayBailException::class);
 
 it('throws ReplayBailException when --replay-bail flag sets SERVER var', function () {
     $_SERVER['REPLAY_BAIL'] = 'true';
@@ -292,4 +292,4 @@ it('throws ReplayBailException when --replay-bail flag sets SERVER var', functio
     } finally {
         unset($_SERVER['REPLAY_BAIL']);
     }
-})->throws(\Pikant\LaravelHttpReplay\Exceptions\ReplayBailException::class);
+})->throws(\EYOND\LaravelHttpReplay\Exceptions\ReplayBailException::class);

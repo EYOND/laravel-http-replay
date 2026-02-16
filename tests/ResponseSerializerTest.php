@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Http;
-use Pikant\LaravelHttpReplay\ResponseSerializer;
+use EYOND\LaravelHttpReplay\ResponseSerializer;
 
 beforeEach(function () {
     $this->serializer = new ResponseSerializer;

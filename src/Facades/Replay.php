@@ -1,16 +1,16 @@
 <?php
 
-namespace Pikant\LaravelHttpReplay\Facades;
+namespace EYOND\LaravelHttpReplay\Facades;
 
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @see \Pikant\LaravelHttpReplay\LaravelHttpReplay
+ * @see \EYOND\LaravelHttpReplay\LaravelHttpReplay
  */
 class Replay extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
-        return \Pikant\LaravelHttpReplay\LaravelHttpReplay::class;
+        return \EYOND\LaravelHttpReplay\LaravelHttpReplay::class;
     }
 }

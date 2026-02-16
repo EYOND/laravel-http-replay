@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Package Overview
 
-Laravel package (`pikant/laravel-http-replay`) for recording and replaying HTTP responses in Laravel/Pest tests. Built with Spatie's Laravel Package Tools. Supports Laravel 11/12 and PHP 8.3/8.4.
+Laravel package (`eyond/laravel-http-replay`) for recording and replaying HTTP responses in Laravel/Pest tests. Built with Spatie's Laravel Package Tools. Supports Laravel 11/12 and PHP 8.3/8.4.
 
 ## Commands
 
@@ -23,9 +23,9 @@ composer format              # Run Laravel Pint code formatter
 
 ## Architecture
 
-- **Namespace:** `Pikant\LaravelHttpReplay`
+- **Namespace:** `EYOND\LaravelHttpReplay`
 - **Service Provider:** `LaravelHttpReplayServiceProvider` — registers config, views, migrations, and commands using Spatie's `PackageServiceProvider`
-- **Facade:** `Pikant\LaravelHttpReplay\Facades\Replay` — resolves to the main `LaravelHttpReplay` class
+- **Facade:** `EYOND\LaravelHttpReplay\Facades\Replay` — resolves to the main `LaravelHttpReplay` class
 - **Testing:** Uses Pest PHP 4 with Orchestra Testbench. Base `TestCase` configures SQLite in-memory DB and auto-registers the service provider
 - **Architecture tests** in `tests/ArchTest.php` enforce no `dd`, `dump`, or `ray` calls in source code
 

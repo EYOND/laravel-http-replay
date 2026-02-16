@@ -1,6 +1,6 @@
 <?php
 
-namespace Pikant\LaravelHttpReplay\Matchers;
+namespace EYOND\LaravelHttpReplay\Matchers;
 
 use Closure;
 use Illuminate\Http\Client\Request;

@@ -1,6 +1,6 @@
 <?php
 
-use Pikant\LaravelHttpReplay\Plugins\ReplayFreshPlugin;
+use EYOND\LaravelHttpReplay\Plugins\ReplayFreshPlugin;
 
 beforeEach(function () {
     unset($_SERVER['REPLAY_FRESH'], $_ENV['REPLAY_FRESH']);

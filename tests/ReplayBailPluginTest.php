@@ -1,6 +1,6 @@
 <?php
 
-use Pikant\LaravelHttpReplay\Plugins\ReplayBailPlugin;
+use EYOND\LaravelHttpReplay\Plugins\ReplayBailPlugin;
 
 beforeEach(function () {
     unset($_SERVER['REPLAY_BAIL'], $_ENV['REPLAY_BAIL']);

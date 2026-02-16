@@ -1,6 +1,6 @@
 <?php
 
-// config for Pikant/LaravelHttpReplay
+// config for EYOND/LaravelHttpReplay
 return [
 
     /*

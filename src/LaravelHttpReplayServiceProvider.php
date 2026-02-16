@@ -1,9 +1,9 @@
 <?php
 
-namespace Pikant\LaravelHttpReplay;
+namespace EYOND\LaravelHttpReplay;
 
 use Illuminate\Http\Client\Factory;
-use Pikant\LaravelHttpReplay\Commands\ReplayPruneCommand;
+use EYOND\LaravelHttpReplay\Commands\ReplayPruneCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 

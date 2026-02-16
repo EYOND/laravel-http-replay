@@ -1,6 +1,6 @@
 <?php
 
-namespace Pikant\LaravelHttpReplay\Plugins;
+namespace EYOND\LaravelHttpReplay\Plugins;
 
 use Pest\Contracts\Plugins\HandlesArguments;
 use Pest\Plugins\Concerns\HandleArguments;

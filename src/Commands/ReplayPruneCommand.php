@@ -1,10 +1,10 @@
 <?php
 
-namespace Pikant\LaravelHttpReplay\Commands;
+namespace EYOND\LaravelHttpReplay\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
-use Pikant\LaravelHttpReplay\ReplayStorage;
+use EYOND\LaravelHttpReplay\ReplayStorage;
 
 class ReplayPruneCommand extends Command
 {

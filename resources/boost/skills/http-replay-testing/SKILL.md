@@ -107,7 +107,7 @@ Http::replay()
 
 Load a single shared fake for `Http::fake()`:
 ```php
-use Pikant\LaravelHttpReplay\Facades\Replay;
+use EYOND\LaravelHttpReplay\Facades\Replay;
 
 Http::fake([
     'foo.com/*' => Replay::getShared('shopify/GET_products.json'),
@@ -176,8 +176,8 @@ tests/.laravel-http-replay/
 
 ## Key classes
 
-- `Pikant\LaravelHttpReplay\ReplayBuilder` — Fluent builder returned by `Http::replay()`
-- `Pikant\LaravelHttpReplay\Facades\Replay` — Facade for `getShared()` and config access
-- `Pikant\LaravelHttpReplay\ForPatternProxy` — Proxy returned by `for()`, only exposes `matchBy()`
-- `Pikant\LaravelHttpReplay\ReplayNamer` — Generates filenames from matchers
-- `Pikant\LaravelHttpReplay\Matchers\NameMatcher` — Interface for custom matchers
+- `EYOND\LaravelHttpReplay\ReplayBuilder` — Fluent builder returned by `Http::replay()`
+- `EYOND\LaravelHttpReplay\Facades\Replay` — Facade for `getShared()` and config access
+- `EYOND\LaravelHttpReplay\ForPatternProxy` — Proxy returned by `for()`, only exposes `matchBy()`
+- `EYOND\LaravelHttpReplay\ReplayNamer` — Generates filenames from matchers
+- `EYOND\LaravelHttpReplay\Matchers\NameMatcher` — Interface for custom matchers

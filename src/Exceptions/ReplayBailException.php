@@ -1,5 +1,5 @@
 <?php
 
-namespace Pikant\LaravelHttpReplay\Exceptions;
+namespace EYOND\LaravelHttpReplay\Exceptions;
 
 class ReplayBailException extends \RuntimeException {}
