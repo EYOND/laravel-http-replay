@@ -54,6 +54,7 @@ Control how filenames are generated from requests:
 | `'method'` | `GET` |
 | `'url'` | `api_example_com_products` |
 | `'host'` | `api_example_com` |
+| `'domain'` | `myshopify_com` (host without subdomain) |
 | `'subdomain'` | `shop` |
 | `'attribute:key'` | Value from `withAttributes(['key' => 'value'])` |
 | `'body_hash'` | `a1b2c3` (hash of entire body) |

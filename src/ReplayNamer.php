@@ -5,6 +5,7 @@ namespace EYOND\LaravelHttpReplay;
 use Closure;
 use EYOND\LaravelHttpReplay\Matchers\BodyHashMatcher;
 use EYOND\LaravelHttpReplay\Matchers\ClosureMatcher;
+use EYOND\LaravelHttpReplay\Matchers\DomainMatcher;
 use EYOND\LaravelHttpReplay\Matchers\HostMatcher;
 use EYOND\LaravelHttpReplay\Matchers\HttpAttributeMatcher;
 use EYOND\LaravelHttpReplay\Matchers\HttpMethodMatcher;
@@ -86,6 +87,7 @@ class ReplayNamer
                 $field === 'http_method' => new HttpMethodMatcher, // alias
                 $field === 'subdomain' => new SubdomainMatcher,
                 $field === 'host' => new HostMatcher,
+                $field === 'domain' => new DomainMatcher,
                 $field === 'url' => new UrlMatcher,
                 $field === 'body_hash' => new BodyHashMatcher,
                 $field === 'body' => new BodyHashMatcher, // alias

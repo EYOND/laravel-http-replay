@@ -112,6 +112,7 @@ The `matchBy()` method accepts any combination of built-in matchers:
 | HTTP Method | `method` | `http_method` | `GET` |
 | URL (host + path) | `url` | | `shop_myshopify_com_api_products` |
 | Host only | `host` | | `shop_myshopify_com` |
+| Domain (host without subdomain) | `domain` | | `myshopify_com` |
 | Subdomain | `subdomain` | | `shop` |
 | HTTP Attribute | `attribute:key` | `http_attribute:key` | Value of `$request->attributes()['key']` |
 | Body Hash | `body_hash` | | `a1b2c3` (6-char hash of entire body) |
