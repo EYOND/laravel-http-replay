@@ -7,17 +7,17 @@ use Closure;
 class ForPatternProxy
 {
     public function __construct(
-        protected ReplayBuilder $builder,
+        protected ReplayBuilder|ReplayConfig $parent,
         protected string $pattern,
     ) {}
 
     /**
      * @param  string|Closure  ...$fields  Matchers for this URL pattern
      */
-    public function matchBy(string|Closure ...$fields): ReplayBuilder
+    public function matchBy(string|Closure ...$fields): ReplayBuilder|ReplayConfig
     {
-        $this->builder->addPerPatternMatchBy($this->pattern, array_values($fields));
+        $this->parent->addPerPatternMatchBy($this->pattern, array_values($fields));
 
-        return $this->builder;
+        return $this->parent;
     }
 }

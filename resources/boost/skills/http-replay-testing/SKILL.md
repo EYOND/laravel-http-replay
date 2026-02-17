@@ -97,6 +97,20 @@ Http::replay()
     ->for('stripe.com/*')->matchBy('method', 'url');
 ```
 
+## Global configuration (`Replay::configure()`)
+
+Configure matchers globally (e.g. in `tests/Pest.php`) without activating replay:
+
+```php
+use EYOND\LaravelHttpReplay\Facades\Replay;
+
+Replay::configure()
+    ->for('myshopify.com/*')->matchBy('url', 'attribute:request_name')
+    ->for('reybex.com/*')->matchBy('method', 'url');
+```
+
+`Http::replay()` in each test inherits this config. Per-test overrides take precedence for the same pattern.
+
 ## Shared fakes
 
 | Method | Reads from | Writes to |
@@ -177,7 +191,8 @@ tests/.laravel-http-replay/
 ## Key classes
 
 - `EYOND\LaravelHttpReplay\ReplayBuilder` — Fluent builder returned by `Http::replay()`
-- `EYOND\LaravelHttpReplay\Facades\Replay` — Facade for `getShared()` and config access
+- `EYOND\LaravelHttpReplay\ReplayConfig` — Config container returned by `Replay::configure()`
+- `EYOND\LaravelHttpReplay\Facades\Replay` — Facade for `configure()`, `getShared()`, and config access
 - `EYOND\LaravelHttpReplay\ForPatternProxy` — Proxy returned by `for()`, only exposes `matchBy()`
 - `EYOND\LaravelHttpReplay\ReplayNamer` — Generates filenames from matchers
 - `EYOND\LaravelHttpReplay\Matchers\NameMatcher` — Interface for custom matchers

@@ -6,6 +6,18 @@ use Illuminate\Support\Facades\File;
 
 class LaravelHttpReplay
 {
+    protected ?ReplayConfig $config = null;
+
+    public function configure(): ReplayConfig
+    {
+        return $this->config ??= new ReplayConfig;
+    }
+
+    public function getConfig(): ?ReplayConfig
+    {
+        return $this->config;
+    }
+
     public function getStoragePath(): string
     {
         $configured = config('http-replay.storage_path', 'tests/.laravel-http-replay');

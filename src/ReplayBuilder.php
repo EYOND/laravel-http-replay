@@ -68,8 +68,28 @@ class ReplayBuilder
         $this->serializer = $serializer ?? new ResponseSerializer;
         $this->namer = new ReplayNamer;
 
+        $this->applyConfig();
+
         $this->registerFakeCallback();
         $this->registerResponseListener();
+    }
+
+    protected function applyConfig(): void
+    {
+        $config = app(LaravelHttpReplay::class)->getConfig();
+
+        if (! $config) {
+            return;
+        }
+
+        if ($config->getMatchByFields() !== null) {
+            $this->matchByFields = $config->getMatchByFields();
+        }
+
+        $this->perPatternMatchBy = array_merge(
+            $config->getPerPatternMatchBy(),
+            $this->perPatternMatchBy,
+        );
     }
 
     /**

@@ -17,6 +17,11 @@ class LaravelHttpReplayServiceProvider extends PackageServiceProvider
             ->hasCommand(ReplayPruneCommand::class);
     }
 
+    public function packageRegistered(): void
+    {
+        $this->app->singleton(LaravelHttpReplay::class);
+    }
+
     public function packageBooted(): void
     {
         $this->registerHttpMacro();

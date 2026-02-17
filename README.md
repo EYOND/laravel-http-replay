@@ -116,7 +116,7 @@ The `matchBy()` method accepts any combination of built-in matchers:
 | HTTP Attribute | `attribute:key` | `http_attribute:key` | Value of `$request->attributes()['key']` |
 | Body Hash | `body_hash` | | `a1b2c3` (6-char hash of entire body) |
 | Body Hash (keys) | `body_hash:query,variables.id` | | Hash of specific body fields |
-| Closure | `fn(Request $r) => [...]` | | Array of filename parts |
+| Closure | `fn(\Illuminate\Http\Client\Request $r) => [...]` | | Array of filename parts |
 
 Default: `['method', 'url']`
 
@@ -131,6 +131,45 @@ Http::replay()
 ```
 
 The `for()` method returns a proxy object — you must call `matchBy()` directly on it. This prevents accidental state leaks.
+
+### Global Configuration (`Replay::configure()`)
+
+Use `Replay::configure()` to set up matchers globally (e.g. in `tests/Pest.php`) without activating replay. This stores configuration only — no fake callback or event listener is registered. When `Http::replay()` is called in a test, it inherits the stored config automatically.
+
+```php
+// tests/Pest.php — configures, does NOT activate
+use EYOND\LaravelHttpReplay\Facades\Replay;
+
+Replay::configure()
+    ->for('myshopify.com/*')->matchBy('url', 'attribute:request_name')
+    ->for('reybex.com/*')->matchBy('method', 'url');
+```
+
+```php
+// Test — activates and inherits config
+it('replays shopify', function () {
+    Http::replay();
+
+    app(ShopifyService::class)->getProducts();
+});
+
+// Test — overrides config for this test
+it('special test', function () {
+    Http::replay()
+        ->for('myshopify.com/*')->matchBy('method', 'url');
+
+    // Uses method + url instead of url + attribute:request_name
+});
+```
+
+`Replay::configure()` supports:
+
+| Method | Description |
+|---|---|
+| `matchBy(string\|Closure ...$fields)` | Set global default matchers (overrides config file default) |
+| `for(string $pattern)->matchBy(...)` | Set per-URL matchers |
+
+Per-test overrides in `Http::replay()` always take precedence over `Replay::configure()` for the same pattern.
 
 ### Shared Fakes
 
@@ -425,6 +464,15 @@ Returns a `ReplayBuilder` instance with the following fluent methods:
 | `useShared(string $name)` | Read + write from a shared location |
 | `fresh(?string $pattern)` | Delete stored fakes and re-record (optionally filtered by URL pattern) |
 | `expireAfter(int\|DateInterval $days)` | Auto-expire stored fakes after N days or a DateInterval |
+
+### `Replay::configure()`
+
+Returns a `ReplayConfig` instance for global configuration without activating replay. Inherits into every `Http::replay()` call.
+
+| Method | Description |
+|---|---|
+| `matchBy(string\|Closure ...$fields)` | Set global default matchers |
+| `for(string $pattern)` | Set per-URL matchers (returns proxy, must chain `matchBy()`) |
 
 ### `Replay::getShared(string $path)`
 
