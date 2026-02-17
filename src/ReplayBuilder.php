@@ -68,10 +68,19 @@ class ReplayBuilder
         $this->serializer = $serializer ?? new ResponseSerializer;
         $this->namer = new ReplayNamer;
 
+        $this->applyDefaults();
         $this->applyConfig();
 
         $this->registerFakeCallback();
         $this->registerResponseListener();
+    }
+
+    protected function applyDefaults(): void
+    {
+        $defaults = app(LaravelHttpReplay::class);
+
+        $this->matchByFields = $defaults->getDefaultMatchBy();
+        $this->expireDays = $defaults->getDefaultExpireAfter();
     }
 
     protected function applyConfig(): void
