@@ -56,9 +56,15 @@ Control how filenames are generated from requests:
 | `'host'` | `api_example_com` |
 | `'domain'` | `myshopify_com` (host without subdomain) |
 | `'subdomain'` | `shop` |
+| `'path'` | `api/v1/products` (path without host) |
 | `'attribute:key'` | Value from `withAttributes(['key' => 'value'])` |
 | `'body_hash'` | `a1b2c3` (hash of entire body) |
 | `'body_hash:query,variables.id'` | Hash of specific body fields |
+| `'body_field:path'` | Value of JSON body field (dot notation) |
+| `'query_hash'` | `a1b2c3` (hash of all query params) |
+| `'query_hash:page,limit'` | Hash of specific query params |
+| `'query:key'` | Value of a specific query parameter |
+| `'header:key'` | Value of a specific request header |
 | `fn(Request $r) => [...]` | Custom closure returning filename parts |
 
 Default: `['method', 'url']`. Aliases: `'http_method'`, `'http_attribute:key'`.

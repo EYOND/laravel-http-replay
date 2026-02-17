@@ -189,6 +189,79 @@ it('generates name with body_hash and specific keys', function () {
         ->toEndWith('.json');
 });
 
+it('generates name with path matcher', function () {
+    Http::fake();
+
+    Http::get('https://shop.myshopify.com/api/v1/products');
+
+    $request = Http::recorded()[0][0];
+    $name = $this->namer->fromRequest($request, ['method', 'path']);
+
+    expect($name)->toBe('GET_api_v1_products.json');
+});
+
+it('generates name with query_hash matcher', function () {
+    Http::fake();
+
+    Http::get('https://example.com/api?page=2&limit=10');
+
+    $request = Http::recorded()[0][0];
+    $name = $this->namer->fromRequest($request, ['url', 'query_hash']);
+
+    expect($name)
+        ->toStartWith('example_com_api_')
+        ->toEndWith('.json');
+});
+
+it('generates name with query_hash and specific keys', function () {
+    Http::fake();
+
+    Http::get('https://example.com/api?page=2&limit=10&ts=123');
+
+    $request = Http::recorded()[0][0];
+    $name = $this->namer->fromRequest($request, ['url', 'query_hash:page,limit']);
+
+    expect($name)
+        ->toStartWith('example_com_api_')
+        ->toEndWith('.json');
+});
+
+it('generates name with query param matcher', function () {
+    Http::fake();
+
+    Http::get('https://example.com/api?action=getProducts');
+
+    $request = Http::recorded()[0][0];
+    $name = $this->namer->fromRequest($request, ['method', 'query:action']);
+
+    expect($name)->toBe('GET_getProducts.json');
+});
+
+it('generates name with header matcher', function () {
+    Http::fake();
+
+    Http::withHeaders(['X-Api-Version' => 'v2'])->get('https://example.com/api');
+
+    $request = Http::recorded()[0][0];
+    $name = $this->namer->fromRequest($request, ['url', 'header:X-Api-Version']);
+
+    expect($name)->toBe('example_com_api_v2.json');
+});
+
+it('generates name with body_field matcher', function () {
+    Http::fake();
+
+    Http::post('https://example.com/graphql', [
+        'operationName' => 'GetProducts',
+        'query' => '{products{...}}',
+    ]);
+
+    $request = Http::recorded()[0][0];
+    $name = $this->namer->fromRequest($request, ['url', 'body_field:operationName']);
+
+    expect($name)->toBe('example_com_graphql_GetProducts.json');
+});
+
 it('throws on unknown matcher string', function () {
     $this->namer->parseMatchers(['nonexistent']);
 })->throws(\InvalidArgumentException::class, 'Unknown matcher: nonexistent');

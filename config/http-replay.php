@@ -21,9 +21,11 @@ return [
     |--------------------------------------------------------------------------
     |
     | The default matchers used to generate filenames from requests.
-    | Supported: 'method' (alias: 'http_method'), 'url', 'host', 'subdomain',
-    |            'attribute:key' (alias: 'http_attribute:key'),
-    |            'body_hash', 'body_hash:key1,key2'
+    | Supported: 'method' (alias: 'http_method'), 'url', 'host', 'domain',
+    |            'subdomain', 'path', 'attribute:key' (alias: 'http_attribute:key'),
+    |            'body_hash', 'body_hash:key1,key2', 'body_field:path',
+    |            'query_hash', 'query_hash:key1,key2', 'query:key',
+    |            'header:key'
     |
     */
     'match_by' => ['method', 'url'],

@@ -3,13 +3,18 @@
 namespace EYOND\LaravelHttpReplay;
 
 use Closure;
+use EYOND\LaravelHttpReplay\Matchers\BodyFieldMatcher;
 use EYOND\LaravelHttpReplay\Matchers\BodyHashMatcher;
 use EYOND\LaravelHttpReplay\Matchers\ClosureMatcher;
 use EYOND\LaravelHttpReplay\Matchers\DomainMatcher;
+use EYOND\LaravelHttpReplay\Matchers\HeaderMatcher;
 use EYOND\LaravelHttpReplay\Matchers\HostMatcher;
 use EYOND\LaravelHttpReplay\Matchers\HttpAttributeMatcher;
 use EYOND\LaravelHttpReplay\Matchers\HttpMethodMatcher;
 use EYOND\LaravelHttpReplay\Matchers\NameMatcher;
+use EYOND\LaravelHttpReplay\Matchers\PathMatcher;
+use EYOND\LaravelHttpReplay\Matchers\QueryHashMatcher;
+use EYOND\LaravelHttpReplay\Matchers\QueryParamMatcher;
 use EYOND\LaravelHttpReplay\Matchers\SubdomainMatcher;
 use EYOND\LaravelHttpReplay\Matchers\UrlMatcher;
 use Illuminate\Http\Client\Request;
@@ -88,9 +93,11 @@ class ReplayNamer
                 $field === 'subdomain' => new SubdomainMatcher,
                 $field === 'host' => new HostMatcher,
                 $field === 'domain' => new DomainMatcher,
+                $field === 'path' => new PathMatcher,
                 $field === 'url' => new UrlMatcher,
                 $field === 'body_hash' => new BodyHashMatcher,
                 $field === 'body' => new BodyHashMatcher, // alias
+                $field === 'query_hash' => new QueryHashMatcher,
                 str_starts_with($field, 'attribute:') => new HttpAttributeMatcher(
                     substr($field, strlen('attribute:'))
                 ),
@@ -99,6 +106,18 @@ class ReplayNamer
                 ), // alias
                 str_starts_with($field, 'body_hash:') => new BodyHashMatcher(
                     explode(',', substr($field, strlen('body_hash:')))
+                ),
+                str_starts_with($field, 'query_hash:') => new QueryHashMatcher(
+                    explode(',', substr($field, strlen('query_hash:')))
+                ),
+                str_starts_with($field, 'query:') => new QueryParamMatcher(
+                    substr($field, strlen('query:'))
+                ),
+                str_starts_with($field, 'header:') => new HeaderMatcher(
+                    substr($field, strlen('header:'))
+                ),
+                str_starts_with($field, 'body_field:') => new BodyFieldMatcher(
+                    substr($field, strlen('body_field:'))
                 ),
                 default => throw new \InvalidArgumentException("Unknown matcher: {$field}"),
             };

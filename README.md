@@ -114,9 +114,15 @@ The `matchBy()` method accepts any combination of built-in matchers:
 | Host only | `host` | | `shop_myshopify_com` |
 | Domain (host without subdomain) | `domain` | | `myshopify_com` |
 | Subdomain | `subdomain` | | `shop` |
+| Path only | `path` | | `api/v1/products` |
 | HTTP Attribute | `attribute:key` | `http_attribute:key` | Value of `$request->attributes()['key']` |
 | Body Hash | `body_hash` | | `a1b2c3` (6-char hash of entire body) |
 | Body Hash (keys) | `body_hash:query,variables.id` | | Hash of specific body fields |
+| Body Field | `body_field:path` | | Value of JSON body field (dot notation) |
+| Query Hash | `query_hash` | | `a1b2c3` (6-char hash of all query params) |
+| Query Hash (keys) | `query_hash:page,limit` | | Hash of specific query params |
+| Query Param | `query:key` | | Value of a specific query parameter |
+| Header | `header:key` | | Value of a specific request header |
 | Closure | `fn(\Illuminate\Http\Client\Request $r) => [...]` | | Array of filename parts |
 
 Default: `['method', 'url']`
