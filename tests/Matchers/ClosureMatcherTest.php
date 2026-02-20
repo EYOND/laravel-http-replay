@@ -1,7 +1,6 @@
 <?php
 
 use EYOND\LaravelHttpReplay\Matchers\ClosureMatcher;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
