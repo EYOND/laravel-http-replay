@@ -65,7 +65,7 @@ Control how filenames are generated from requests:
 | `'query_hash:page,limit'` | Hash of specific query params |
 | `'query:key'` | Value of a specific query parameter |
 | `'header:key'` | Value of a specific request header |
-| `fn(Request $r) => [...]` | Custom closure returning filename parts |
+| `fn(Request $r) => ...` | Closure returning `string`, `int`, `array`, or `Collection` |
 
 Default: `['method', 'url']`. Aliases: `'http_method'`, `'http_attribute:key'`.
 
@@ -86,11 +86,11 @@ Http::replay()->matchBy('url', 'body_hash');
 // Different bodies produce different filenames
 ```
 
-**3. Closure** (custom logic):
+**3. Closure** (custom logic — may return `string`, `int`, `array`, or `Collection`):
 ```php
 Http::replay()->matchBy(
     'method',
-    fn(Request $r) => [$r->data()['operationName'] ?? 'unknown'],
+    fn(Request $r) => $r->data()['operationName'] ?? 'unknown',
 );
 ```
 

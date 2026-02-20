@@ -4,6 +4,7 @@ namespace EYOND\LaravelHttpReplay\Matchers;
 
 use Closure;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Collection;
 
 class ClosureMatcher implements NameMatcher
 {
@@ -12,20 +13,19 @@ class ClosureMatcher implements NameMatcher
     ) {}
 
     /**
-     * Resolve by calling the closure. The closure should return an array of filename parts.
-     * We join non-empty parts with '_'.
+     * Resolve by calling the closure.
+     *
+     * The closure may return a string, int, array of strings, or Collection.
+     * Multiple parts are joined with '_', empty parts are filtered out.
      */
     public function resolve(Request $request): ?string
     {
-        /** @var array<int, string> $parts */
-        $parts = ($this->callback)($request);
+        $result = ($this->callback)($request);
 
-        $filtered = array_filter($parts, fn ($part) => $part !== '');
-
-        if ($filtered === []) {
-            return null;
-        }
-
-        return implode('_', $filtered);
+        return Collection::wrap($result)
+            ->flatten()
+            ->map(fn (mixed $part): string => (string) $part)
+            ->reject(fn (string $part): bool => $part === '')
+            ->implode('_') ?: null;
     }
 }

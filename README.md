@@ -94,12 +94,17 @@ it('auto-disambiguates by body', function () {
 
 #### Via Closure Matcher
 
-Use a closure for custom filename generation:
+Use a closure for custom filename generation. The closure may return a `string`, `int`, `array`, or `Collection` — multiple parts are joined with `_`, empty parts are filtered out:
 
 ```php
 Http::replay()->matchBy(
     'method',
-    fn(Request $r) => [$r->data()['operationName'] ?? 'unknown'],
+    fn(Request $r) => $r->data()['operationName'] ?? 'unknown',
+);
+
+// Or return multiple parts as array or Collection:
+Http::replay()->matchBy(
+    fn(Request $r) => ['graphql', $r->data()['operationName'] ?? 'unknown'],
 );
 ```
 
@@ -123,7 +128,7 @@ The `matchBy()` method accepts any combination of built-in matchers:
 | Query Hash (keys) | `query_hash:page,limit` | | Hash of specific query params |
 | Query Param | `query:key` | | Value of a specific query parameter |
 | Header | `header:key` | | Value of a specific request header |
-| Closure | `fn(\Illuminate\Http\Client\Request $r) => [...]` | | Array of filename parts |
+| Closure | `fn(\Illuminate\Http\Client\Request $r) => ...` | | Returns `string`, `int`, `array`, or `Collection` |
 
 Default: `['method', 'url']`
 
