@@ -4,7 +4,8 @@
     "keywords": [
         "eyond",
         "laravel",
-        "laravel-http-replay"
+        "laravel-http-replay",
+        "testing"
     ],
     "homepage": "https://github.com/eyond/laravel-http-replay",
     "license": "MIT",

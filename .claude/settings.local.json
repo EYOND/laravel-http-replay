@@ -12,7 +12,15 @@
       "Bash(xargs:*)",
       "Bash(./vendor/bin/phpstan analyse:*)",
       "Bash(./vendor/bin/pint:*)",
-      "WebFetch(domain:pestphp.com)"
+      "WebFetch(domain:pestphp.com)",
+      "Bash(gh release list:*)",
+      "Bash(gh repo view:*)",
+      "Bash(gh release create:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+      "WebFetch(domain:packagist.org)",
+      "WebSearch"
     ]
   },
   "plansDirectory": ".claude/plans"
