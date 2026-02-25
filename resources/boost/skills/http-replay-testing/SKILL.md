@@ -73,11 +73,18 @@ Default: `['method', 'url']`. Aliases: `'http_method'`, `'http_attribute:key'`.
 
 Three approaches:
 
-**1. withAttributes** (explicit naming):
+**1. withAttributes** (`replay` is a reserved key — always takes priority, no `matchBy` needed):
 ```php
 Http::withAttributes(['replay' => 'products'])
     ->post('https://shop.com/graphql', ['query' => '{products{...}}']);
 // Stored as: products.json
+```
+
+For custom attributes, use `matchBy('attribute:key')`:
+```php
+Http::replay()->matchBy('method', 'attribute:operation');
+Http::withAttributes(['operation' => 'getProducts'])
+    ->post('https://shop.com/graphql', ['query' => '{products{...}}']);
 ```
 
 **2. Body hash** (automatic):

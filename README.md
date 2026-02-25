@@ -63,7 +63,7 @@ When multiple requests go to the same URL (e.g. GraphQL endpoints), you need to 
 
 #### Via `withAttributes`
 
-Give each request a unique name using Laravel's `withAttributes`:
+The `replay` attribute is a **reserved key** that always takes priority over all matchers — no `matchBy` configuration needed:
 
 ```php
 it('fetches products and orders via GraphQL', function () {
@@ -78,6 +78,17 @@ it('fetches products and orders via GraphQL', function () {
 ```
 
 This stores the responses as `products.json` and `orders.json`.
+
+For custom attribute keys, use `matchBy('attribute:key')`:
+
+```php
+it('uses a custom attribute for naming', function () {
+    Http::replay()->matchBy('method', 'attribute:operation');
+
+    Http::withAttributes(['operation' => 'getProducts'])
+        ->post('https://shopify.com/graphql', ['query' => '{products{...}}']);
+});
+```
 
 #### Via `matchBy` with Body Hash
 
