@@ -310,7 +310,14 @@ class ReplayBuilder
             return $this->serializer->deserialize($data);
         }
 
-        // No stored response — mark for recording, allow real call
+        // No stored response — bail if active, otherwise mark for recording
+        if ($this->shouldBail()) {
+            throw new ReplayBailException(
+                "Http Replay has no stored response for [{$this->saveDirectory}/{$baseFilename}] and bail mode is active. "
+                .'Run tests locally to record new fakes.'
+            );
+        }
+
         $key = $this->recordingKey($request);
         $this->pendingRecordings[$key] = ($this->pendingRecordings[$key] ?? 0) + 1;
 
@@ -334,17 +341,6 @@ class ReplayBuilder
         }
 
         $this->pendingRecordings[$key]--;
-
-        // Bail mode — fail if attempting to write
-        if ($this->shouldBail()) {
-            $matchBy = $this->resolveMatchBy($request);
-            $filename = $this->namer->fromRequest($request, $matchBy);
-
-            throw new ReplayBailException(
-                "Http Replay attempted to write [{$this->saveDirectory}/{$filename}] but bail mode is active. "
-                .'Run tests locally to record new fakes.'
-            );
-        }
 
         $matchBy = $this->resolveMatchBy($request);
         $filename = $this->namer->fromRequest($request, $matchBy);

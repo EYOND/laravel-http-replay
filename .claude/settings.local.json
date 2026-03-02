@@ -20,7 +20,8 @@
       "Bash(curl:*)",
       "Bash(python3:*)",
       "WebFetch(domain:packagist.org)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(git push:*)"
     ]
   },
   "plansDirectory": ".claude/plans"

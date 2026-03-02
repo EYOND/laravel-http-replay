@@ -252,20 +252,19 @@ it('throws ReplayBailException when bail config is active', function () {
 
     $builder = new ReplayBuilder($this->storage);
 
-    // Set up the builder as initialized with pending recordings
+    // Build a request object — initialized must be false so the builder's fake callback doesn't interfere
+    Http::fake(['api.example.com/*' => Http::response(['ok' => true])]);
+    Http::get('https://api.example.com/products');
+    [$request] = Http::recorded()[0];
+
+    // Now set up the builder state and invoke handleRequest directly
     $reflection = new ReflectionClass($builder);
     $reflection->getProperty('initialized')->setValue($builder, true);
     $reflection->getProperty('loadDirectories')->setValue($builder, [$dir]);
     $reflection->getProperty('saveDirectory')->setValue($builder, $dir);
-    $reflection->getProperty('pendingRecordings')->setValue($builder, ['GET:https://api.example.com/products' => 1]);
 
-    // Simulate a response being received (this is what triggers bail)
-    Http::fake(['api.example.com/*' => Http::response(['ok' => true])]);
-    Http::get('https://api.example.com/products');
-    [$request, $response] = Http::recorded()[0];
-
-    $method = $reflection->getMethod('handleResponseReceived');
-    $method->invoke($builder, $request, $response);
+    $method = $reflection->getMethod('handleRequest');
+    $method->invoke($builder, $request);
 })->throws(\EYOND\LaravelHttpReplay\Exceptions\ReplayBailException::class);
 
 it('throws ReplayBailException when --replay-bail flag sets SERVER var', function () {
@@ -276,19 +275,20 @@ it('throws ReplayBailException when --replay-bail flag sets SERVER var', functio
 
     $builder = new ReplayBuilder($this->storage);
 
+    // Build a request object — initialized must be false so the builder's fake callback doesn't interfere
+    Http::fake(['api.example.com/*' => Http::response(['ok' => true])]);
+    Http::get('https://api.example.com/products');
+    [$request] = Http::recorded()[0];
+
+    // Now set up the builder state and invoke handleRequest directly
     $reflection = new ReflectionClass($builder);
     $reflection->getProperty('initialized')->setValue($builder, true);
     $reflection->getProperty('loadDirectories')->setValue($builder, [$dir]);
     $reflection->getProperty('saveDirectory')->setValue($builder, $dir);
-    $reflection->getProperty('pendingRecordings')->setValue($builder, ['GET:https://api.example.com/products' => 1]);
-
-    Http::fake(['api.example.com/*' => Http::response(['ok' => true])]);
-    Http::get('https://api.example.com/products');
-    [$request, $response] = Http::recorded()[0];
 
     try {
-        $method = $reflection->getMethod('handleResponseReceived');
-        $method->invoke($builder, $request, $response);
+        $method = $reflection->getMethod('handleRequest');
+        $method->invoke($builder, $request);
     } finally {
         unset($_SERVER['REPLAY_BAIL']);
     }
