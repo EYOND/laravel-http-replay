@@ -42,6 +42,7 @@ Http::replay()
     ->writeTo('shopify-v2')                         // Write to shared dir
     ->useShared('shopify')                          // Read + write same shared dir
     ->fresh()                                       // Delete and re-record
+    ->bail()                                        // Fail if no stored response
     ->expireAfter(days: 7);                         // Auto-expire after N days
 ```
 
@@ -154,16 +155,20 @@ Http::replay()->expireAfter(new DateInterval('P1M'));  // Or use DateInterval
 CLI: `vendor/bin/pest --replay-fresh` or `REPLAY_FRESH=true vendor/bin/pest`.
 Artisan: `php artisan replay:prune`.
 
-## CI bail mode
+## Bail mode
 
-Prevents accidental recording in CI:
+Prevents accidental recording. Throws `ReplayBailException` if a test tries to write a new replay file.
+
+```php
+// Per-test or in beforeEach
+Http::replay()->bail();
+```
 
 ```bash
+# CI-wide via Pest flag or env
 vendor/bin/pest --replay-bail
 # or: REPLAY_BAIL=true vendor/bin/pest
 ```
-
-Throws `ReplayBailException` if a test tries to write a new replay file.
 
 ## Mixed recording + static fakes
 

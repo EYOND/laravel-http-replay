@@ -124,6 +124,14 @@ it('supports fluent fresh configuration', function () {
     expect($result)->toBeInstanceOf(ReplayBuilder::class);
 });
 
+it('supports fluent bail configuration', function () {
+    $builder = new ReplayBuilder($this->storage);
+
+    $result = $builder->bail();
+
+    expect($result)->toBeInstanceOf(ReplayBuilder::class);
+});
+
 it('supports fluent expireAfter configuration', function () {
     $builder = new ReplayBuilder($this->storage);
 
@@ -243,6 +251,28 @@ it('supports for()->matchBy() per-URL configuration', function () {
 
     expect($prop->getValue($builder))->toHaveCount(2);
 });
+
+it('throws ReplayBailException when bail() is used', function () {
+    $dir = $this->tempDir.'/test';
+    File::ensureDirectoryExists($dir);
+
+    $builder = new ReplayBuilder($this->storage);
+    $builder->bail();
+
+    // Build a request object — initialized must be false so the builder's fake callback doesn't interfere
+    Http::fake(['api.example.com/*' => Http::response(['ok' => true])]);
+    Http::get('https://api.example.com/products');
+    [$request] = Http::recorded()[0];
+
+    // Now set up the builder state and invoke handleRequest directly
+    $reflection = new ReflectionClass($builder);
+    $reflection->getProperty('initialized')->setValue($builder, true);
+    $reflection->getProperty('loadDirectories')->setValue($builder, [$dir]);
+    $reflection->getProperty('saveDirectory')->setValue($builder, $dir);
+
+    $method = $reflection->getMethod('handleRequest');
+    $method->invoke($builder, $request);
+})->throws(\EYOND\LaravelHttpReplay\Exceptions\ReplayBailException::class);
 
 it('throws ReplayBailException when bail config is active', function () {
     config()->set('http-replay.bail', true);

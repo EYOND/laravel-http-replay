@@ -358,8 +358,16 @@ Or set it in your app config:
 
 Prevent tests from accidentally recording new fakes in CI by enabling bail mode. When active, tests will **fail** if Replay attempts to write a new file.
 
+```php
+// Per-test or in beforeEach
+Http::replay()->bail();
+
+// Per-test with other options
+Http::replay()->readFrom('shopify')->bail();
+```
+
 ```bash
-# Pest flag (recommended)
+# Pest flag (recommended for CI)
 vendor/bin/pest --replay-bail
 
 # Or via environment variable
@@ -486,6 +494,7 @@ Returns a `ReplayBuilder` instance with the following fluent methods:
 | `writeTo(string $name)` | Save recorded fakes to a shared location |
 | `useShared(string $name)` | Read + write from a shared location |
 | `fresh(?string $pattern)` | Delete stored fakes and re-record (optionally filtered by URL pattern) |
+| `bail()` | Fail if Replay attempts to record a new fake (no stored response found) |
 | `expireAfter(int\|DateInterval $days)` | Auto-expire stored fakes after N days or a DateInterval |
 
 ### `Replay::configure()`

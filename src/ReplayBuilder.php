@@ -31,6 +31,8 @@ class ReplayBuilder
 
     protected bool $isFresh = false;
 
+    protected bool $isBail = false;
+
     protected ?string $freshPattern = null;
 
     protected ?int $expireDays = null;
@@ -173,6 +175,13 @@ class ReplayBuilder
     {
         $this->isFresh = true;
         $this->freshPattern = $pattern;
+
+        return $this;
+    }
+
+    public function bail(): self
+    {
+        $this->isBail = true;
 
         return $this;
     }
@@ -427,11 +436,12 @@ class ReplayBuilder
     }
 
     /**
-     * Check if bail mode is active (via config or --replay-bail flag).
+     * Check if bail mode is active (via fluent API, config, or environment).
      */
     protected function shouldBail(): bool
     {
-        return config('http-replay.bail', false)
+        return $this->isBail
+            || config('http-replay.bail', false)
             || filter_var($_SERVER['REPLAY_BAIL'] ?? false, FILTER_VALIDATE_BOOLEAN);
     }
 
