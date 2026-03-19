@@ -549,8 +549,8 @@ The `Http::replay()` macro itself is registered on `Illuminate\Http\Client\Facto
 
 ## Requirements
 
-- PHP 8.3+
-- Laravel 11 or 12
+- PHP 8.4+
+- Laravel 13
 - Pest PHP 4
 
 ## Testing
@@ -565,7 +565,7 @@ Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed re
 
 ## Contributing
 
-This package is built with **Vibe Coding** — designed and developed in collaboration with Claude Code. Despite that, the codebase follows strict quality standards: PHPStan level 5, full test coverage across PHP 8.3-8.4 and Laravel 11-12, and consistent code formatting via Pint.
+This package is built with **Vibe Coding** — designed and developed in collaboration with Claude Code. Despite that, the codebase follows strict quality standards: PHPStan level 5, full test coverage across PHP 8.4-8.5 and Laravel 13, and consistent code formatting via Pint.
 
 **Bug fixes** — PRs with a failing test and fix are welcome.
 

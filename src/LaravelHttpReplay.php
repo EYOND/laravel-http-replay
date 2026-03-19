@@ -2,6 +2,7 @@
 
 namespace EYOND\LaravelHttpReplay;
 
+use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Support\Facades\File;
 
 class LaravelHttpReplay
@@ -45,7 +46,7 @@ class LaravelHttpReplay
     /**
      * Load a single stored replay file for use in Http::fake().
      */
-    public function getShared(string $path): \GuzzleHttp\Promise\PromiseInterface
+    public function getShared(string $path): PromiseInterface
     {
         $fullPath = $this->getStoragePath()
             .DIRECTORY_SEPARATOR.'_shared'

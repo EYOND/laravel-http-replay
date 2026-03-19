@@ -2,6 +2,7 @@
 
 namespace EYOND\LaravelHttpReplay;
 
+use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -31,7 +32,7 @@ class ResponseSerializer
 
     /**
      * @param  array{status: int, headers?: array<string, mixed>, body: mixed}  $data
-     * @return \GuzzleHttp\Promise\PromiseInterface
+     * @return PromiseInterface
      */
     public function deserialize(array $data)
     {

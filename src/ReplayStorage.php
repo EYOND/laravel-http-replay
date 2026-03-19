@@ -2,7 +2,9 @@
 
 namespace EYOND\LaravelHttpReplay;
 
+use Carbon\Carbon;
 use Illuminate\Support\Facades\File;
+use Pest\TestSuite;
 
 class ReplayStorage
 {
@@ -15,7 +17,7 @@ class ReplayStorage
 
     public function getTestDirectory(): string
     {
-        $testSuite = \Pest\TestSuite::getInstance();
+        $testSuite = TestSuite::getInstance();
         $filename = $testSuite->getFilename();
         $description = $testSuite->getDescription();
 
@@ -116,7 +118,7 @@ class ReplayStorage
             return true;
         }
 
-        $recordedAt = \Carbon\Carbon::parse($data['recorded_at']);
+        $recordedAt = Carbon::parse($data['recorded_at']);
 
         return $recordedAt->addDays($days)->isPast();
     }

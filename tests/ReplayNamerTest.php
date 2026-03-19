@@ -264,4 +264,4 @@ it('generates name with body_field matcher', function () {
 
 it('throws on unknown matcher string', function () {
     $this->namer->parseMatchers(['nonexistent']);
-})->throws(\InvalidArgumentException::class, 'Unknown matcher: nonexistent');
+})->throws(InvalidArgumentException::class, 'Unknown matcher: nonexistent');
