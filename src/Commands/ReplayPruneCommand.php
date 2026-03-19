@@ -98,8 +98,8 @@ class ReplayPruneCommand extends Command
     {
         // Extract relative path from test file path
         $file = str_replace('.php', '', $file);
-        $file = str_replace('tests/', '', $file);
-        $file = str_replace('tests\\', '', $file);
+        $file = str_replace(['tests/', 'tests\\'], '', $file);
+        $file = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $file);
 
         $targetDir = $basePath.DIRECTORY_SEPARATOR.$file;
 

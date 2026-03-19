@@ -6,12 +6,14 @@ use Closure;
 use DateInterval;
 use DateTimeImmutable;
 use EYOND\LaravelHttpReplay\Exceptions\ReplayBailException;
+use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Http\Client\Events\ResponseReceived;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Pest\TestSuite;
 
 class ReplayBuilder
 {
@@ -21,7 +23,7 @@ class ReplayBuilder
     /** @var list<string>|null */
     protected ?array $onlyPatterns = null;
 
-    /** @var array<string, \GuzzleHttp\Promise\PromiseInterface|Closure|int|string> */
+    /** @var array<string, PromiseInterface|Closure|int|string> */
     protected array $additionalFakes = [];
 
     /** @var list<string> */
@@ -140,7 +142,7 @@ class ReplayBuilder
     }
 
     /**
-     * @param  array<string, \GuzzleHttp\Promise\PromiseInterface|Closure|int|string>  $stubs
+     * @param  array<string, PromiseInterface|Closure|int|string>  $stubs
      */
     public function alsoFake(array $stubs): self
     {
@@ -296,7 +298,7 @@ class ReplayBuilder
     }
 
     /**
-     * @return \GuzzleHttp\Promise\PromiseInterface|null
+     * @return PromiseInterface|null
      */
     protected function handleRequest(Request $request)
     {
@@ -360,8 +362,8 @@ class ReplayBuilder
         $this->storage->store($data, $this->saveDirectory, $filename);
 
         // Mark test as incomplete when recording new responses
-        if (class_exists(\Pest\TestSuite::class)) {
-            \Pest\TestSuite::getInstance()->registerSnapshotChange(
+        if (class_exists(TestSuite::class)) {
+            TestSuite::getInstance()->registerSnapshotChange(
                 "Http replay recorded at [{$this->saveDirectory}/{$filename}]"
             );
         }
@@ -383,7 +385,7 @@ class ReplayBuilder
     }
 
     /**
-     * @return \GuzzleHttp\Promise\PromiseInterface|null
+     * @return PromiseInterface|null
      */
     protected function matchStaticFake(Request $request)
     {

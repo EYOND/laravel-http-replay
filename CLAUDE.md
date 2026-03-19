@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Package Overview
 
-Laravel package (`eyond/laravel-http-replay`) for recording and replaying HTTP responses in Laravel/Pest tests. Built with Spatie's Laravel Package Tools. Supports Laravel 11/12 and PHP 8.3/8.4.
+Laravel package (`eyond/laravel-http-replay`) for recording and replaying HTTP responses in Laravel/Pest tests. Built with Spatie's Laravel Package Tools. Supports Laravel 13 and PHP 8.4/8.5.
 
 ## Commands
 
@@ -48,4 +48,4 @@ Do not run the commit yourself — just print the snippet so the user can review
 
 - **PHPStan** at level 5 with Larastan, Octane compatibility, and model property checks enabled
 - **Pint** for code formatting (Laravel preset)
-- CI runs tests across PHP 8.3-8.4 x Laravel 11-12 matrix on Ubuntu and Windows
+- CI runs tests across PHP 8.4-8.5 x Laravel 13 matrix on Ubuntu and Windows

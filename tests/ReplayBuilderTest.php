@@ -1,5 +1,6 @@
 <?php
 
+use EYOND\LaravelHttpReplay\Exceptions\ReplayBailException;
 use EYOND\LaravelHttpReplay\ReplayBuilder;
 use EYOND\LaravelHttpReplay\ReplayStorage;
 use Illuminate\Support\Facades\File;
@@ -272,7 +273,7 @@ it('throws ReplayBailException when bail() is used', function () {
 
     $method = $reflection->getMethod('handleRequest');
     $method->invoke($builder, $request);
-})->throws(\EYOND\LaravelHttpReplay\Exceptions\ReplayBailException::class);
+})->throws(ReplayBailException::class);
 
 it('throws ReplayBailException when bail config is active', function () {
     config()->set('http-replay.bail', true);
@@ -295,22 +296,23 @@ it('throws ReplayBailException when bail config is active', function () {
 
     $method = $reflection->getMethod('handleRequest');
     $method->invoke($builder, $request);
-})->throws(\EYOND\LaravelHttpReplay\Exceptions\ReplayBailException::class);
+})->throws(ReplayBailException::class);
 
 it('throws ReplayBailException when --replay-bail flag sets SERVER var', function () {
-    $_SERVER['REPLAY_BAIL'] = 'true';
-
     $dir = $this->tempDir.'/test';
     File::ensureDirectoryExists($dir);
 
-    $builder = new ReplayBuilder($this->storage);
-
-    // Build a request object — initialized must be false so the builder's fake callback doesn't interfere
+    // Build a request object BEFORE creating the ReplayBuilder to avoid
+    // the builder's fake callback interfering with the Http::get() call
     Http::fake(['api.example.com/*' => Http::response(['ok' => true])]);
     Http::get('https://api.example.com/products');
     [$request] = Http::recorded()[0];
 
-    // Now set up the builder state and invoke handleRequest directly
+    $_SERVER['REPLAY_BAIL'] = 'true';
+
+    $builder = new ReplayBuilder($this->storage);
+
+    // Set up the builder state and invoke handleRequest directly
     $reflection = new ReflectionClass($builder);
     $reflection->getProperty('initialized')->setValue($builder, true);
     $reflection->getProperty('loadDirectories')->setValue($builder, [$dir]);
@@ -322,4 +324,4 @@ it('throws ReplayBailException when --replay-bail flag sets SERVER var', functio
     } finally {
         unset($_SERVER['REPLAY_BAIL']);
     }
-})->throws(\EYOND\LaravelHttpReplay\Exceptions\ReplayBailException::class);
+})->throws(ReplayBailException::class);

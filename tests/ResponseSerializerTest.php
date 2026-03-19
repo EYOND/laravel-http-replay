@@ -1,6 +1,7 @@
 <?php
 
 use EYOND\LaravelHttpReplay\ResponseSerializer;
+use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
@@ -54,7 +55,7 @@ it('deserializes a stored response', function () {
     $response = $this->serializer->deserialize($data);
 
     // The deserialized response should be a PromiseInterface (as returned by Http::response())
-    expect($response)->toBeInstanceOf(\GuzzleHttp\Promise\PromiseInterface::class);
+    expect($response)->toBeInstanceOf(PromiseInterface::class);
 });
 
 it('preserves request attributes in serialization', function () {
