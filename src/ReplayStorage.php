@@ -132,7 +132,7 @@ class ReplayStorage
     {
         $configured = config('http-replay.storage_path', 'tests/.laravel-http-replay');
 
-        if (str_starts_with($configured, '/')) {
+        if (str_starts_with($configured, '/') || preg_match('/^[A-Za-z]:[\\\\\\/]/', $configured)) {
             return $configured;
         }
 

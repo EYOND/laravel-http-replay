@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\File;
 
 beforeEach(function () {
-    $this->replayDir = sys_get_temp_dir().'/http-replays-cmd-'.uniqid();
+    $this->replayDir = sys_get_temp_dir().DIRECTORY_SEPARATOR.'http-replays-cmd-'.uniqid();
     config()->set('http-replay.storage_path', $this->replayDir);
 });
 
@@ -14,8 +14,8 @@ afterEach(function () {
 });
 
 it('deletes all replay files with no options', function () {
-    File::ensureDirectoryExists($this->replayDir.'/Feature/Test');
-    File::put($this->replayDir.'/Feature/Test/response.json', '{}');
+    File::ensureDirectoryExists($this->replayDir.DIRECTORY_SEPARATOR.'Feature'.DIRECTORY_SEPARATOR.'Test');
+    File::put($this->replayDir.DIRECTORY_SEPARATOR.'Feature'.DIRECTORY_SEPARATOR.'Test'.DIRECTORY_SEPARATOR.'response.json', '{}');
 
     $this->artisan('replay:prune')
         ->assertSuccessful();
@@ -24,9 +24,9 @@ it('deletes all replay files with no options', function () {
 });
 
 it('deletes shared fakes by name', function () {
-    $sharedDir = $this->replayDir.'/_shared/shopify';
+    $sharedDir = $this->replayDir.DIRECTORY_SEPARATOR.'_shared'.DIRECTORY_SEPARATOR.'shopify';
     File::ensureDirectoryExists($sharedDir);
-    File::put($sharedDir.'/GET_products.json', '{}');
+    File::put($sharedDir.DIRECTORY_SEPARATOR.'GET_products.json', '{}');
 
     $this->artisan('replay:prune', ['--shared' => 'shopify'])
         ->assertSuccessful();
@@ -41,9 +41,9 @@ it('warns when shared directory does not exist', function () {
 });
 
 it('deletes fakes for a specific test file', function () {
-    $dir = $this->replayDir.'/Feature/ShopifyTest';
+    $dir = $this->replayDir.DIRECTORY_SEPARATOR.'Feature'.DIRECTORY_SEPARATOR.'ShopifyTest';
     File::ensureDirectoryExists($dir);
-    File::put($dir.'/response.json', '{}');
+    File::put($dir.DIRECTORY_SEPARATOR.'response.json', '{}');
 
     $this->artisan('replay:prune', ['--file' => 'tests/Feature/ShopifyTest.php'])
         ->assertSuccessful();
@@ -52,20 +52,20 @@ it('deletes fakes for a specific test file', function () {
 });
 
 it('deletes fakes matching a URL pattern', function () {
-    $dir = $this->replayDir.'/test';
+    $dir = $this->replayDir.DIRECTORY_SEPARATOR.'test';
     File::ensureDirectoryExists($dir);
 
-    File::put($dir.'/shopify.json', json_encode([
+    File::put($dir.DIRECTORY_SEPARATOR.'shopify.json', json_encode([
         'request' => ['url' => 'https://shopify.com/api/products'],
     ]));
 
-    File::put($dir.'/stripe.json', json_encode([
+    File::put($dir.DIRECTORY_SEPARATOR.'stripe.json', json_encode([
         'request' => ['url' => 'https://api.stripe.com/charges'],
     ]));
 
     $this->artisan('replay:prune', ['--url' => 'shopify.com/*'])
         ->assertSuccessful();
 
-    expect(File::exists($dir.'/shopify.json'))->toBeFalse();
-    expect(File::exists($dir.'/stripe.json'))->toBeTrue();
+    expect(File::exists($dir.DIRECTORY_SEPARATOR.'shopify.json'))->toBeFalse();
+    expect(File::exists($dir.DIRECTORY_SEPARATOR.'stripe.json'))->toBeTrue();
 });
