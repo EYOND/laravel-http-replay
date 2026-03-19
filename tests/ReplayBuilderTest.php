@@ -299,8 +299,6 @@ it('throws ReplayBailException when bail config is active', function () {
 })->throws(ReplayBailException::class);
 
 it('throws ReplayBailException when --replay-bail flag sets SERVER var', function () {
-    $_SERVER['REPLAY_BAIL'] = 'true';
-
     $dir = $this->tempDir.'/test';
     File::ensureDirectoryExists($dir);
 
@@ -310,6 +308,10 @@ it('throws ReplayBailException when --replay-bail flag sets SERVER var', functio
     Http::fake(['api.example.com/*' => Http::response(['ok' => true])]);
     Http::get('https://api.example.com/products');
     [$request] = Http::recorded()[0];
+
+    // Set REPLAY_BAIL after Http::get() to avoid the builder's fake callback
+    // triggering bail mode before we reach the try/finally block
+    $_SERVER['REPLAY_BAIL'] = 'true';
 
     // Now set up the builder state and invoke handleRequest directly
     $reflection = new ReflectionClass($builder);
