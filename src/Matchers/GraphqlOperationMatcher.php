@@ -58,7 +58,7 @@ final class GraphqlOperationMatcher implements NameMatcher
     protected function namedOperation(string $document): ?string
     {
         preg_match_all(
-            '/[_A-Za-z][_0-9A-Za-z]*|[{}()\[\]]/',
+            '/[_A-Za-z][_0-9A-Za-z]*|[{}()\[\]@]/',
             $this->withoutCommentsAndStrings($document),
             $matches,
         );

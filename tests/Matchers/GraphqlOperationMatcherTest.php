@@ -62,6 +62,28 @@ it('does not mistake operation keywords used as fragment names for operations', 
     expect($this->matcher->resolve(Http::recorded()[0][0]))->toBe('GetProduct');
 })->with(['query', 'mutation', 'subscription']);
 
+it('recognizes an anonymous operation with a directive', function () {
+    $document = 'query @inContext(country: DE) { shop { name } }';
+
+    Http::withBody(json_encode(['query' => $document]), 'application/json')->post('https://example.com/graphql');
+
+    expect($this->matcher->resolve(Http::recorded()[0][0]))->toBe('anonymous');
+});
+
+it('ignores operation-like text after escaped triple quotes in block strings', function () {
+    $document = <<<'GRAPHQL'
+        {
+            search(query: """
+                \""" query Leaked { id }
+            """)
+        }
+        GRAPHQL;
+
+    Http::withBody(json_encode(['query' => $document]), 'application/json')->post('https://example.com/graphql');
+
+    expect($this->matcher->resolve(Http::recorded()[0][0]))->toBe('anonymous');
+});
+
 it('uses X-EYOND-Request as a fallback', function () {
     Http::withHeaders(['X-EYOND-Request' => 'InventorySync'])
         ->withBody('{"query":"{ inventoryItems { id } }"}', 'application/json')
