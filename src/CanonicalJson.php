@@ -2,6 +2,7 @@
 
 namespace EYOND\LaravelHttpReplay;
 
+use JsonException;
 use stdClass;
 
 final class CanonicalJson
@@ -13,7 +14,14 @@ final class CanonicalJson
 
     public function decode(string $json): mixed
     {
-        return json_decode($json, flags: JSON_THROW_ON_ERROR);
+        $decoded = json_decode($json, flags: JSON_THROW_ON_ERROR);
+        $lossless = json_decode($json, flags: JSON_THROW_ON_ERROR | JSON_BIGINT_AS_STRING);
+
+        if ($this->containsLossyInteger($decoded, $lossless)) {
+            throw new JsonException('JSON contains an integer outside the PHP integer range.');
+        }
+
+        return $decoded;
     }
 
     public function encode(mixed $value): string
@@ -51,5 +59,26 @@ final class CanonicalJson
         }
 
         return $value;
+    }
+
+    protected function containsLossyInteger(mixed $decoded, mixed $lossless): bool
+    {
+        if (is_float($decoded) && is_string($lossless)) {
+            return true;
+        }
+
+        if (is_array($decoded) && is_array($lossless)) {
+            foreach ($decoded as $key => $value) {
+                if ($this->containsLossyInteger($value, $lossless[$key])) {
+                    return true;
+                }
+            }
+        }
+
+        if (is_object($decoded) && is_object($lossless)) {
+            return $this->containsLossyInteger(get_object_vars($decoded), get_object_vars($lossless));
+        }
+
+        return false;
     }
 }

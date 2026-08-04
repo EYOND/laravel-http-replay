@@ -28,3 +28,7 @@ it('preserves empty objects and empty lists', function () {
 it('throws for invalid JSON', function () {
     (new CanonicalJson)->canonicalize('not-json');
 })->throws(JsonException::class);
+
+it('throws before a large integer can lose precision', function () {
+    (new CanonicalJson)->canonicalize('{"id":9223372036854775808}');
+})->throws(JsonException::class, 'JSON contains an integer outside the PHP integer range.');

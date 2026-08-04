@@ -106,7 +106,12 @@ final class GraphqlOperationMatcher implements NameMatcher
                 $bracketDepth = max(0, $bracketDepth - 1);
             } elseif ($token === '{' && $parenthesisDepth === 0 && $bracketDepth === 0) {
                 $selectionDepth++;
-            } elseif ($token === '}' && $selectionDepth > 0) {
+            } elseif (
+                $token === '}'
+                && $selectionDepth > 0
+                && $parenthesisDepth === 0
+                && $bracketDepth === 0
+            ) {
                 $selectionDepth--;
 
                 if ($selectionDepth === 0) {

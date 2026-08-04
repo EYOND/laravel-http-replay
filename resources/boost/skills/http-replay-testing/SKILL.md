@@ -74,7 +74,7 @@ Control how filenames are generated from requests:
 
 Default: `['method', 'url']`. Aliases: `'http_method'`, `'http_attribute:key'`.
 
-Legacy `body_hash`, keyed `body_hash`, and `query_hash` remain non-canonical for filename compatibility. Invalid JSON passed to `canonical_body_hash` falls back to hashing the raw body. For selected paths, missing paths are omitted while explicit `null` values are retained. Matcher objects are also accepted:
+Legacy `body_hash`, keyed `body_hash`, and `query_hash` remain non-canonical for filename compatibility. Invalid JSON and JSON integers outside PHP's integer range passed to `canonical_body_hash` fall back to hashing the raw body, avoiding precision loss for large identifiers. For selected paths, missing paths are omitted while explicit `null` values are retained. Matcher objects are also accepted:
 
 ```php
 use EYOND\LaravelHttpReplay\Matchers;

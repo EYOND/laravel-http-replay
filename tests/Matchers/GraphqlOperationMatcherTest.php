@@ -84,6 +84,20 @@ it('recognizes an anonymous operation with a directive after a fragment', functi
     expect($this->matcher->resolve(Http::recorded()[0][0]))->toBe('anonymous');
 });
 
+it('finds an operation after a fragment containing nested input values', function (string $filter) {
+    $document = <<<GRAPHQL
+        fragment Fields on Query { products(filter: {$filter}) { id } }
+        query RealOperation { ...Fields }
+        GRAPHQL;
+
+    Http::withBody(json_encode(['query' => $document]), 'application/json')->post('https://example.com/graphql');
+
+    expect($this->matcher->resolve(Http::recorded()[0][0]))->toBe('RealOperation');
+})->with([
+    'object argument' => '{status: ACTIVE}',
+    'list argument' => '[{status: ACTIVE}]',
+]);
+
 it('ignores operation-like text after escaped triple quotes in block strings', function () {
     $document = <<<'GRAPHQL'
         {

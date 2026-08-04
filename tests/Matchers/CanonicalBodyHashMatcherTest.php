@@ -59,6 +59,17 @@ it('distinguishes a missing selected path from an explicit null value', function
         ->and($matcher->resolve(Http::recorded()[1][0]))->toBe('37d144');
 });
 
+it('falls back to raw body hashes for lossy integers', function () {
+    Http::withBody('{"id":9223372036854775808}', 'application/json')->post('https://example.com/graphql');
+    Http::withBody('{"id":9223372036854775809}', 'application/json')->post('https://example.com/graphql');
+    Http::withBody('{"id":"9223372036854775808"}', 'application/json')->post('https://example.com/graphql');
+
+    $matcher = new CanonicalBodyHashMatcher(['id']);
+    $hashes = Http::recorded()->map(fn (array $recorded): string => $matcher->resolve($recorded[0]));
+
+    expect($hashes->all())->toBe(['a5ab70', '4c7d35', '801838']);
+});
+
 it('falls back to the raw body hash for non-JSON bodies', function () {
     Http::withBody('plain text body', 'text/plain')->post('https://example.com/graphql');
 
