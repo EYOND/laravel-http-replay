@@ -32,7 +32,10 @@ it('extracts a named mutation operation', function () {
 it('ignores operation-like text in comments and string literals', function () {
     $document = <<<'GRAPHQL'
         # query CommentedOut { ignored }
-        query RealOperation { search(query: "mutation NotAnOperation { ignored }") { id } }
+        fragment SearchFragment on Query {
+            search(query: "mutation NotAnOperation { ignored }") { id }
+        }
+        query RealOperation { ...SearchFragment }
         GRAPHQL;
 
     Http::withBody(json_encode(['query' => $document]), 'application/json')->post('https://example.com/graphql');
@@ -64,6 +67,17 @@ it('does not mistake operation keywords used as fragment names for operations', 
 
 it('recognizes an anonymous operation with a directive', function () {
     $document = 'query @inContext(country: DE) { shop { name } }';
+
+    Http::withBody(json_encode(['query' => $document]), 'application/json')->post('https://example.com/graphql');
+
+    expect($this->matcher->resolve(Http::recorded()[0][0]))->toBe('anonymous');
+});
+
+it('recognizes an anonymous operation with a directive after a fragment', function () {
+    $document = <<<'GRAPHQL'
+        fragment Fields on Query { shop { name } }
+        query @inContext(country: DE) { ...Fields }
+        GRAPHQL;
 
     Http::withBody(json_encode(['query' => $document]), 'application/json')->post('https://example.com/graphql');
 

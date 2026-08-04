@@ -15,7 +15,11 @@ final class GraphqlOperationMatcher implements NameMatcher
             return $operationName;
         }
 
-        if ($document !== null && ($namedOperation = $this->namedOperation($document)) !== null) {
+        [$namedOperation, $anonymousOperation] = $document !== null
+            ? $this->operation($document)
+            : [null, false];
+
+        if ($namedOperation !== null) {
             return $namedOperation;
         }
 
@@ -24,7 +28,7 @@ final class GraphqlOperationMatcher implements NameMatcher
             return $eyondRequest;
         }
 
-        if ($document !== null && $this->looksAnonymous($document)) {
+        if ($anonymousOperation) {
             return 'anonymous';
         }
 
@@ -55,7 +59,10 @@ final class GraphqlOperationMatcher implements NameMatcher
         ];
     }
 
-    protected function namedOperation(string $document): ?string
+    /**
+     * @return array{?string, bool}
+     */
+    protected function operation(string $document): array
     {
         preg_match_all(
             '/[_A-Za-z][_0-9A-Za-z]*|[{}()\[\]@]/',
@@ -74,9 +81,16 @@ final class GraphqlOperationMatcher implements NameMatcher
                 if (in_array($token, ['query', 'mutation', 'subscription'], true)) {
                     $operationName = $tokens[$index + 1] ?? null;
 
-                    return is_string($operationName) && preg_match('/^[_A-Za-z][_0-9A-Za-z]*$/', $operationName) === 1
-                        ? $operationName
-                        : null;
+                    return [
+                        is_string($operationName) && preg_match('/^[_A-Za-z][_0-9A-Za-z]*$/', $operationName) === 1
+                            ? $operationName
+                            : null,
+                        true,
+                    ];
+                }
+
+                if ($token === '{') {
+                    return [null, true];
                 }
 
                 $atDefinitionStart = false;
@@ -101,15 +115,7 @@ final class GraphqlOperationMatcher implements NameMatcher
             }
         }
 
-        return null;
-    }
-
-    protected function looksAnonymous(string $document): bool
-    {
-        $document = ltrim($this->withoutCommentsAndStrings($document), " \t\n\r\0\x0B,");
-
-        return str_starts_with($document, '{')
-            || preg_match('/^(?:query|mutation|subscription)\b/', $document) === 1;
+        return [null, false];
     }
 
     protected function withoutCommentsAndStrings(string $document): string
