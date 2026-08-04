@@ -32,6 +32,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Response Headers
+    |--------------------------------------------------------------------------
+    |
+    | Control which response headers are stored in replay files.
+    | Use true for all headers, false for none, or list specific header names.
+    | Header names are matched case-insensitively.
+    |
+    */
+    'response_headers' => true,
+
+    /*
+    |--------------------------------------------------------------------------
     | Expire After (Days)
     |--------------------------------------------------------------------------
     |

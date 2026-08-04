@@ -37,7 +37,7 @@ class ReplayStorage
     }
 
     /**
-     * @return array<string, array{status: int, headers: array<string, mixed>, body: mixed, recorded_at?: string, request?: array<string, mixed>}>
+     * @return array<string, array{status: int, headers?: array<string, mixed>, body: mixed, body_encoding?: string, recorded_at?: string, request?: array<string, mixed>}>
      */
     public function findStoredResponses(string $directory): array
     {

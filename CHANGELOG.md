@@ -18,10 +18,13 @@ All notable changes to `laravel-http-replay` will be documented in this file.
 - `literal:*`, `graphql_operation`, and `canonical_body_hash[:paths]` string shorthands
 - Opt-in Semantic and Strict Shopify GraphQL profiles through `Replay::configure()->shopify()`
 - Precision-safe raw-body fallback for canonical hashes containing JSON integers outside PHP's integer range
+- Configurable response-header storage through `response_headers`, `withResponseHeaders()`, and `withoutResponseHeaders()`
+- Lossless Base64 storage and transparent replay for binary and non-UTF-8 response bodies
 
 ### Compatibility
 
-- Existing default, legacy matcher filenames, reserved `replay` attributes, and repeated-request queue behavior remain unchanged
+- Existing default, legacy matcher filenames, replay schemas without `body_encoding`, reserved `replay` attributes, and repeated-request queue behavior remain unchanged
+- All response headers remain the package default; disabling them still stores a stable empty `headers` list
 - The additive API is intended for a future 0.2.x release, accepted by Composer constraints `^0.2` and `^0.2.0`
 
 ## v0.2.0 - 2026-03-19

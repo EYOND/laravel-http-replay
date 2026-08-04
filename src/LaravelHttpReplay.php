@@ -44,6 +44,24 @@ class LaravelHttpReplay
     }
 
     /**
+     * @return bool|list<string>
+     */
+    public function getDefaultResponseHeaders(): bool|array
+    {
+        $headers = config('http-replay.response_headers', true);
+
+        if (is_bool($headers)) {
+            return $headers;
+        }
+
+        if (! is_array($headers)) {
+            return true;
+        }
+
+        return array_values(array_filter($headers, is_string(...)));
+    }
+
+    /**
      * Load a single stored replay file for use in Http::fake().
      */
     public function getShared(string $path): PromiseInterface
