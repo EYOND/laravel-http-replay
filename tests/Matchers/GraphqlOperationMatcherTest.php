@@ -40,6 +40,17 @@ it('ignores operation-like text in comments and string literals', function () {
     expect($this->matcher->resolve(Http::recorded()[0][0]))->toBe('RealOperation');
 });
 
+it('ignores unmatched quotes inside comments', function () {
+    $document = <<<'GRAPHQL'
+        # opening quote: "
+        query RealOperation { product(id: "1") { id } }
+        GRAPHQL;
+
+    Http::withBody(json_encode(['query' => $document]), 'application/json')->post('https://example.com/graphql');
+
+    expect($this->matcher->resolve(Http::recorded()[0][0]))->toBe('RealOperation');
+});
+
 it('uses X-EYOND-Request as a fallback', function () {
     Http::withHeaders(['X-EYOND-Request' => 'InventorySync'])
         ->withBody('{"query":"{ inventoryItems { id } }"}', 'application/json')

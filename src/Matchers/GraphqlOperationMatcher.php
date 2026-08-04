@@ -76,9 +76,75 @@ final class GraphqlOperationMatcher implements NameMatcher
 
     protected function withoutCommentsAndStrings(string $document): string
     {
-        $document = (string) preg_replace('/""".*?"""/s', ' ', $document);
-        $document = (string) preg_replace('/"(?:\\\\.|[^"\\\\])*"/s', ' ', $document);
+        $filtered = '';
+        $length = strlen($document);
 
-        return (string) preg_replace('/#[^\r\n]*/', ' ', $document);
+        for ($position = 0; $position < $length; $position++) {
+            if (substr($document, $position, 3) === '"""') {
+                $filtered .= '   ';
+                $position += 2;
+
+                while (++$position < $length) {
+                    if ($document[$position] === '\\' && substr($document, $position + 1, 3) === '"""') {
+                        $filtered .= '    ';
+                        $position += 3;
+
+                        continue;
+                    }
+
+                    if (substr($document, $position, 3) === '"""') {
+                        $filtered .= '   ';
+                        $position += 2;
+
+                        break;
+                    }
+
+                    $filtered .= str_contains("\r\n", $document[$position]) ? $document[$position] : ' ';
+                }
+
+                continue;
+            }
+
+            if ($document[$position] === '#') {
+                while ($position < $length && ! str_contains("\r\n", $document[$position])) {
+                    $filtered .= ' ';
+                    $position++;
+                }
+
+                if ($position < $length) {
+                    $filtered .= $document[$position];
+                }
+
+                continue;
+            }
+
+            if ($document[$position] === '"') {
+                $filtered .= ' ';
+
+                while (++$position < $length) {
+                    if ($document[$position] === '\\') {
+                        $filtered .= ' ';
+
+                        if (++$position < $length) {
+                            $filtered .= ' ';
+                        }
+
+                        continue;
+                    }
+
+                    $filtered .= str_contains("\r\n", $document[$position]) ? $document[$position] : ' ';
+
+                    if ($document[$position] === '"' || str_contains("\r\n", $document[$position])) {
+                        break;
+                    }
+                }
+
+                continue;
+            }
+
+            $filtered .= $document[$position];
+        }
+
+        return $filtered;
     }
 }

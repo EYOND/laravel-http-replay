@@ -219,8 +219,9 @@ it('special test', function () {
 
 | Method | Description |
 |---|---|
-| `matchBy(string\|Closure ...$fields)` | Set global default matchers (overrides config file default) |
+| `matchBy(string\|Closure\|NameMatcher ...$fields)` | Set global default matchers (overrides config file default) |
 | `for(string $pattern)->matchBy(...)` | Set per-URL matchers |
+| `shopify(ShopifyProfile $profile = ShopifyProfile::Semantic)` | Register the opt-in Shopify GraphQL recipe |
 
 Per-test overrides in `Http::replay()` always take precedence over `Replay::configure()` for the same pattern.
 
