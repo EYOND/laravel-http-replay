@@ -2,6 +2,14 @@
 
 All notable changes to `laravel-http-replay` will be documented in this file.
 
+## v0.2.1 - 2026-08-04
+
+### What is Changed
+
+* Add reusable matchers and Shopify GraphQL profiles by @pikant in https://github.com/EYOND/laravel-http-replay/pull/5
+
+**Full Changelog**: https://github.com/EYOND/laravel-http-replay/compare/v0.2.0...v0.2.1
+
 ## Unreleased (compatible with the 0.2 release line)
 
 ### Added
