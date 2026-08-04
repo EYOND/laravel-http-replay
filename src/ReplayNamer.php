@@ -5,12 +5,15 @@ namespace EYOND\LaravelHttpReplay;
 use Closure;
 use EYOND\LaravelHttpReplay\Matchers\BodyFieldMatcher;
 use EYOND\LaravelHttpReplay\Matchers\BodyHashMatcher;
+use EYOND\LaravelHttpReplay\Matchers\CanonicalBodyHashMatcher;
 use EYOND\LaravelHttpReplay\Matchers\ClosureMatcher;
 use EYOND\LaravelHttpReplay\Matchers\DomainMatcher;
+use EYOND\LaravelHttpReplay\Matchers\GraphqlOperationMatcher;
 use EYOND\LaravelHttpReplay\Matchers\HeaderMatcher;
 use EYOND\LaravelHttpReplay\Matchers\HostMatcher;
 use EYOND\LaravelHttpReplay\Matchers\HttpAttributeMatcher;
 use EYOND\LaravelHttpReplay\Matchers\HttpMethodMatcher;
+use EYOND\LaravelHttpReplay\Matchers\LiteralMatcher;
 use EYOND\LaravelHttpReplay\Matchers\NameMatcher;
 use EYOND\LaravelHttpReplay\Matchers\PathMatcher;
 use EYOND\LaravelHttpReplay\Matchers\QueryHashMatcher;
@@ -22,7 +25,7 @@ use Illuminate\Http\Client\Request;
 class ReplayNamer
 {
     /**
-     * @param  list<string|Closure>  $matchBy
+     * @param  list<string|Closure|NameMatcher>  $matchBy
      */
     public function fromRequest(Request $request, array $matchBy): string
     {
@@ -73,7 +76,7 @@ class ReplayNamer
     }
 
     /**
-     * @param  list<string|Closure>  $matchBy
+     * @param  list<string|Closure|NameMatcher>  $matchBy
      * @return list<NameMatcher>
      */
     public function parseMatchers(array $matchBy): array
@@ -81,6 +84,12 @@ class ReplayNamer
         $matchers = [];
 
         foreach ($matchBy as $field) {
+            if ($field instanceof NameMatcher) {
+                $matchers[] = $field;
+
+                continue;
+            }
+
             if ($field instanceof Closure) {
                 $matchers[] = new ClosureMatcher($field);
 
@@ -98,6 +107,11 @@ class ReplayNamer
                 $field === 'body_hash' => new BodyHashMatcher,
                 $field === 'body' => new BodyHashMatcher, // alias
                 $field === 'query_hash' => new QueryHashMatcher,
+                $field === 'graphql_operation' => new GraphqlOperationMatcher,
+                $field === 'canonical_body_hash' => new CanonicalBodyHashMatcher,
+                str_starts_with($field, 'literal:') => new LiteralMatcher(
+                    substr($field, strlen('literal:'))
+                ),
                 str_starts_with($field, 'attribute:') => new HttpAttributeMatcher(
                     substr($field, strlen('attribute:'))
                 ),
@@ -106,6 +120,9 @@ class ReplayNamer
                 ), // alias
                 str_starts_with($field, 'body_hash:') => new BodyHashMatcher(
                     explode(',', substr($field, strlen('body_hash:')))
+                ),
+                str_starts_with($field, 'canonical_body_hash:') => new CanonicalBodyHashMatcher(
+                    explode(',', substr($field, strlen('canonical_body_hash:')))
                 ),
                 str_starts_with($field, 'query_hash:') => new QueryHashMatcher(
                     explode(',', substr($field, strlen('query_hash:')))

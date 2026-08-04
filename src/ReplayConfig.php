@@ -3,21 +3,29 @@
 namespace EYOND\LaravelHttpReplay;
 
 use Closure;
+use EYOND\LaravelHttpReplay\Matchers\NameMatcher;
 
 class ReplayConfig
 {
-    /** @var list<string|Closure>|null */
+    /** @var list<string|Closure|NameMatcher>|null */
     protected ?array $matchByFields = null;
 
-    /** @var array<string, list<string|Closure>> */
+    /** @var array<string, list<string|Closure|NameMatcher>> */
     protected array $perPatternMatchBy = [];
 
     /**
-     * @param  string|Closure  ...$fields  Matchers for filename generation
+     * @param  string|Closure|NameMatcher  ...$fields  Matchers for filename generation
      */
-    public function matchBy(string|Closure ...$fields): self
+    public function matchBy(string|Closure|NameMatcher ...$fields): self
     {
         $this->matchByFields = array_values($fields);
+
+        return $this;
+    }
+
+    public function shopify(ShopifyProfile $profile = ShopifyProfile::Semantic): self
+    {
+        $this->addPerPatternMatchBy(ShopifyProfile::URL_PATTERN, $profile->matchers());
 
         return $this;
     }
@@ -31,7 +39,7 @@ class ReplayConfig
     }
 
     /**
-     * @param  list<string|Closure>  $fields
+     * @param  list<string|Closure|NameMatcher>  $fields
      */
     public function addPerPatternMatchBy(string $pattern, array $fields): void
     {
@@ -39,7 +47,7 @@ class ReplayConfig
     }
 
     /**
-     * @return list<string|Closure>|null
+     * @return list<string|Closure|NameMatcher>|null
      */
     public function getMatchByFields(): ?array
     {
@@ -47,7 +55,7 @@ class ReplayConfig
     }
 
     /**
-     * @return array<string, list<string|Closure>>
+     * @return array<string, list<string|Closure|NameMatcher>>
      */
     public function getPerPatternMatchBy(): array
     {
