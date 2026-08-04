@@ -6,6 +6,8 @@ use Closure;
 use DateInterval;
 use DateTimeImmutable;
 use EYOND\LaravelHttpReplay\Exceptions\ReplayBailException;
+use EYOND\LaravelHttpReplay\Matchers\CanonicalBodyHashMatcher;
+use EYOND\LaravelHttpReplay\Matchers\NameMatcher;
 use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Http\Client\Events\ResponseReceived;
 use Illuminate\Http\Client\Request;
@@ -17,7 +19,7 @@ use Pest\TestSuite;
 
 class ReplayBuilder
 {
-    /** @var list<string|Closure> */
+    /** @var list<string|Closure|NameMatcher> */
     protected array $matchByFields = ['method', 'url'];
 
     /** @var list<string>|null */
@@ -55,7 +57,7 @@ class ReplayBuilder
     /** @var array<string, int> */
     protected array $pendingRecordings = [];
 
-    /** @var array<string, list<string|Closure>> */
+    /** @var array<string, list<string|Closure|NameMatcher>> */
     protected array $perPatternMatchBy = [];
 
     protected ReplayStorage $storage;
@@ -106,9 +108,9 @@ class ReplayBuilder
     }
 
     /**
-     * @param  string|Closure  ...$fields  Matchers for filename generation
+     * @param  string|Closure|NameMatcher  ...$fields  Matchers for filename generation
      */
-    public function matchBy(string|Closure ...$fields): self
+    public function matchBy(string|Closure|NameMatcher ...$fields): self
     {
         $this->matchByFields = array_values($fields);
 
@@ -124,7 +126,7 @@ class ReplayBuilder
     }
 
     /**
-     * @param  list<string|Closure>  $fields
+     * @param  list<string|Closure|NameMatcher>  $fields
      */
     public function addPerPatternMatchBy(string $pattern, array $fields): void
     {
@@ -405,7 +407,7 @@ class ReplayBuilder
     /**
      * Resolve which matchBy fields to use for a given request.
      *
-     * @return list<string|Closure>
+     * @return list<string|Closure|NameMatcher>
      */
     protected function resolveMatchBy(Request $request): array
     {
@@ -428,7 +430,9 @@ class ReplayBuilder
             if ($field instanceof Closure) {
                 continue;
             }
-            if (in_array($field, ['body', 'body_hash']) || str_starts_with($field, 'body_hash:')) {
+            if ($field instanceof CanonicalBodyHashMatcher
+                || (is_string($field) && (in_array($field, ['body', 'body_hash']) || str_starts_with($field, 'body_hash:') || str_starts_with($field, 'canonical_body_hash')))
+            ) {
                 $key .= ':'.md5(json_encode($request->body()) ?: '');
                 break;
             }

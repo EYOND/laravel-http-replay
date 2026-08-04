@@ -61,6 +61,10 @@ Control how filenames are generated from requests:
 | `'attribute:key'` | Value from `withAttributes(['key' => 'value'])` |
 | `'body_hash'` | `a1b2c3` (hash of entire body) |
 | `'body_hash:query,variables.id'` | Hash of specific body fields |
+| `'canonical_body_hash'` | 6-character hash of the canonical complete JSON body |
+| `'canonical_body_hash:variables,extensions.context'` | Canonical hash of selected dot-notation paths |
+| `'graphql_operation'` | `operationName`, named operation, `X-EYOND-Request`, `anonymous`, or `unknown` |
+| `'literal:shopify'` | Fixed literal filename part |
 | `'body_field:path'` | Value of JSON body field (dot notation) |
 | `'query_hash'` | `a1b2c3` (hash of all query params) |
 | `'query_hash:page,limit'` | Hash of specific query params |
@@ -69,6 +73,28 @@ Control how filenames are generated from requests:
 | `fn(Request $r) => ...` | Closure returning `string`, `int`, `array`, or `Collection` |
 
 Default: `['method', 'url']`. Aliases: `'http_method'`, `'http_attribute:key'`.
+
+Legacy `body_hash`, keyed `body_hash`, and `query_hash` remain non-canonical for filename compatibility. Invalid JSON and JSON integers outside PHP's integer range passed to `canonical_body_hash` fall back to hashing the raw body, avoiding precision loss for large identifiers. For selected paths, missing paths are omitted while explicit `null` values are retained. Matcher objects are also accepted:
+
+```php
+use EYOND\LaravelHttpReplay\Matchers;
+use EYOND\LaravelHttpReplay\Matchers\CanonicalBodyHashMatcher;
+use EYOND\LaravelHttpReplay\Matchers\GraphqlOperationMatcher;
+use EYOND\LaravelHttpReplay\Matchers\LiteralMatcher;
+
+Http::replay()->matchBy(
+    Matchers::literal('custom'),
+    Matchers::graphqlOperation(),
+    Matchers::canonicalBodyHash('variables'),
+);
+
+// The concrete matcher classes are also directly usable public API.
+Http::replay()->matchBy(
+    new LiteralMatcher('custom'),
+    new GraphqlOperationMatcher,
+    new CanonicalBodyHashMatcher(['variables']),
+);
+```
 
 ## Same-URL disambiguation (GraphQL)
 
@@ -125,6 +151,20 @@ Replay::configure()
 ```
 
 `Http::replay()` in each test inherits this config. Per-test overrides take precedence for the same pattern.
+
+### Shopify GraphQL profiles
+
+Profiles are opt-in matcher recipes for `*.myshopify.com/admin/api/*/graphql.json`:
+
+```php
+use EYOND\LaravelHttpReplay\Facades\Replay;
+use EYOND\LaravelHttpReplay\ShopifyProfile;
+
+Replay::configure()->shopify(); // Semantic: shopify + graphql + operation + canonical variables hash
+Replay::configure()->shopify(profile: ShopifyProfile::Strict); // Canonical complete-body hash
+```
+
+Semantic filenames look like `shopify_graphql_GetProducts_744ad5.json`. Strict reacts to GraphQL document and variable changes. Both ignore shop subdomain, API version, and JSON object-key order. Build project-specific profiles with `for(ShopifyProfile::URL_PATTERN)->matchBy(...)` and `Matchers`; per-test recipes override global configuration.
 
 ## Shared fakes
 
@@ -207,6 +247,8 @@ tests/.laravel-http-replay/
         └── GET_api_products.json
 ```
 
+Repeated requests with the same lookup filename use the existing queue convention: base filename, then `__2`, `__3`, and so on. Responses replay in that order.
+
 ## Key classes
 
 - `EYOND\LaravelHttpReplay\ReplayBuilder` — Fluent builder returned by `Http::replay()`
@@ -215,3 +257,6 @@ tests/.laravel-http-replay/
 - `EYOND\LaravelHttpReplay\ForPatternProxy` — Proxy returned by `for()`, only exposes `matchBy()`
 - `EYOND\LaravelHttpReplay\ReplayNamer` — Generates filenames from matchers
 - `EYOND\LaravelHttpReplay\Matchers\NameMatcher` — Interface for custom matchers
+- `EYOND\LaravelHttpReplay\Matchers` — Factory for reusable matcher objects
+- `EYOND\LaravelHttpReplay\CanonicalJson` — Deterministic recursive JSON canonicalization
+- `EYOND\LaravelHttpReplay\ShopifyProfile` — Semantic and Strict Shopify matcher recipes

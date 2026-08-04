@@ -3,6 +3,7 @@
 namespace EYOND\LaravelHttpReplay;
 
 use Closure;
+use EYOND\LaravelHttpReplay\Matchers\NameMatcher;
 
 class ForPatternProxy
 {
@@ -12,9 +13,9 @@ class ForPatternProxy
     ) {}
 
     /**
-     * @param  string|Closure  ...$fields  Matchers for this URL pattern
+     * @param  string|Closure|NameMatcher  ...$fields  Matchers for this URL pattern
      */
-    public function matchBy(string|Closure ...$fields): ReplayBuilder|ReplayConfig
+    public function matchBy(string|Closure|NameMatcher ...$fields): ReplayBuilder|ReplayConfig
     {
         $this->parent->addPerPatternMatchBy($this->pattern, array_values($fields));
 

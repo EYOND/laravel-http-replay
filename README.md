@@ -134,6 +134,10 @@ The `matchBy()` method accepts any combination of built-in matchers:
 | HTTP Attribute | `attribute:key` | `http_attribute:key` | Value of `$request->attributes()['key']` |
 | Body Hash | `body_hash` | | `a1b2c3` (6-char hash of entire body) |
 | Body Hash (keys) | `body_hash:query,variables.id` | | Hash of specific body fields |
+| Canonical Body Hash | `canonical_body_hash` | | 6-character hash after recursive JSON object-key sorting |
+| Canonical Body Hash (paths) | `canonical_body_hash:variables,extensions.context` | | Canonical hash of selected dot-notation paths |
+| GraphQL Operation | `graphql_operation` | | `operationName`, a named operation, or a deterministic fallback |
+| Literal | `literal:shopify` | | `shopify` |
 | Body Field | `body_field:path` | | Value of JSON body field (dot notation) |
 | Query Hash | `query_hash` | | `a1b2c3` (6-char hash of all query params) |
 | Query Hash (keys) | `query_hash:page,limit` | | Hash of specific query params |
@@ -142,6 +146,32 @@ The `matchBy()` method accepts any combination of built-in matchers:
 | Closure | `fn(\Illuminate\Http\Client\Request $r) => ...` | | Returns `string`, `int`, `array`, or `Collection` |
 
 Default: `['method', 'url']`
+
+`body_hash`, `body_hash:<keys>`, and `query_hash` retain their original non-canonical behavior so existing replay filenames remain unchanged. Canonicalization is only enabled through `canonical_body_hash` or its matcher object. Invalid JSON and JSON integers outside PHP's integer range fall back to a 6-character hash of the raw body. This avoids precision loss for large identifiers. For selected paths, a missing path is omitted from the canonical subset while an explicit `null` value is retained.
+
+Matcher objects can be composed through the public factory or instantiated directly:
+
+```php
+use EYOND\LaravelHttpReplay\Matchers;
+use EYOND\LaravelHttpReplay\Matchers\CanonicalBodyHashMatcher;
+use EYOND\LaravelHttpReplay\Matchers\GraphqlOperationMatcher;
+use EYOND\LaravelHttpReplay\Matchers\LiteralMatcher;
+
+Http::replay()->matchBy(
+    Matchers::literal('custom'),
+    Matchers::graphqlOperation(),
+    Matchers::canonicalBodyHash('variables', 'extensions.context'),
+);
+
+// Equivalent building blocks are directly usable public API.
+Http::replay()->matchBy(
+    new LiteralMatcher('custom'),
+    new GraphqlOperationMatcher,
+    new CanonicalBodyHashMatcher(['variables', 'extensions.context']),
+);
+```
+
+`CanonicalJson` sorts associative array and object keys recursively, preserves list order and scalar types, and encodes with explicit deterministic JSON flags and `JSON_THROW_ON_ERROR`.
 
 ### Per-URL Configuration
 
@@ -189,10 +219,56 @@ it('special test', function () {
 
 | Method | Description |
 |---|---|
-| `matchBy(string\|Closure ...$fields)` | Set global default matchers (overrides config file default) |
+| `matchBy(string\|Closure\|NameMatcher ...$fields)` | Set global default matchers (overrides config file default) |
 | `for(string $pattern)->matchBy(...)` | Set per-URL matchers |
+| `shopify(ShopifyProfile $profile = ShopifyProfile::Semantic)` | Register the opt-in Shopify GraphQL recipe |
 
 Per-test overrides in `Http::replay()` always take precedence over `Replay::configure()` for the same pattern.
+
+### Shopify GraphQL Profiles
+
+Shopify matching is opt-in and uses the same public matcher composition as `matchBy()`. Configure the semantic default profile globally:
+
+```php
+use EYOND\LaravelHttpReplay\Facades\Replay;
+
+Replay::configure()->shopify();
+```
+
+It applies only to `*.myshopify.com/admin/api/*/graphql.json` and builds filenames from these exact parts:
+
+1. Literal `shopify`
+2. Literal `graphql`
+3. GraphQL operation name
+4. 6-character canonical hash of `variables`
+
+For example, operation `GetProducts` with `{"variables":{"a":1,"b":2}}` becomes `shopify_graphql_GetProducts_744ad5.json`. Shop subdomain and Shopify API version are intentionally excluded.
+
+Use the strict profile when changes to the GraphQL document must create a different replay:
+
+```php
+use EYOND\LaravelHttpReplay\ShopifyProfile;
+
+Replay::configure()->shopify(profile: ShopifyProfile::Strict);
+```
+
+Strict uses the same first three parts and hashes the complete canonical JSON body. Both document and variable changes therefore change the hash, while JSON object-key order does not. Anonymous operations use `anonymous`; unparseable input uses `unknown`; `X-EYOND-Request` is used as a fallback before those values.
+
+Profiles are reusable recipes. A project-specific profile can compose the same matchers and override the global Shopify recipe per test:
+
+```php
+use EYOND\LaravelHttpReplay\Matchers;
+use EYOND\LaravelHttpReplay\ShopifyProfile;
+
+Http::replay()
+    ->for(ShopifyProfile::URL_PATTERN)->matchBy(
+        Matchers::literal('ryzon'),
+        Matchers::graphqlOperation(),
+        Matchers::canonicalBodyHash('variables', 'extensions.context'),
+    );
+```
+
+No Shopify profile is activated automatically. Existing projects continue using their configured matchers and replay filenames without changes.
 
 ### Shared Fakes
 
@@ -451,6 +527,9 @@ tests/.laravel-http-replay/
 | `withAttributes(['replay' => 'products'])` | `products.json` |
 | `matchBy('url', 'body_hash')` | `shopify_com_graphql_a1b2c3.json` |
 | Duplicate URL (sequential calls) | `GET_api_example_com_products__2.json` |
+| Shopify semantic profile | `shopify_graphql_GetProducts_744ad5.json` |
+
+Repeated requests with the same matcher filename form a queue. The first response is stored under the base filename, followed by `__2`, `__3`, and so on; replay consumes them in that order. The filename remains the lookup key.
 
 ## Configuration
 
@@ -486,7 +565,7 @@ Returns a `ReplayBuilder` instance with the following fluent methods:
 
 | Method | Description |
 |---|---|
-| `matchBy(string\|Closure ...$fields)` | Matchers for filename generation |
+| `matchBy(string\|Closure\|NameMatcher ...$fields)` | Matchers for filename generation |
 | `for(string $pattern)` | Set URL pattern for per-URL matcher config (returns proxy, must chain `matchBy()`) |
 | `only(array $patterns)` | Only record/replay URLs matching these patterns |
 | `alsoFake(array $stubs)` | Additional static fakes for non-replayed URLs |
@@ -503,8 +582,9 @@ Returns a `ReplayConfig` instance for global configuration without activating re
 
 | Method | Description |
 |---|---|
-| `matchBy(string\|Closure ...$fields)` | Set global default matchers |
+| `matchBy(string\|Closure\|NameMatcher ...$fields)` | Set global default matchers |
 | `for(string $pattern)` | Set per-URL matchers (returns proxy, must chain `matchBy()`) |
+| `shopify(ShopifyProfile $profile = ShopifyProfile::Semantic)` | Register the opt-in Shopify GraphQL recipe |
 
 ### `Replay::getShared(string $path)`
 
