@@ -147,7 +147,7 @@ The `matchBy()` method accepts any combination of built-in matchers:
 
 Default: `['method', 'url']`
 
-`body_hash`, `body_hash:<keys>`, and `query_hash` retain their original non-canonical behavior so existing replay filenames remain unchanged. Canonicalization is only enabled through `canonical_body_hash` or its matcher object. Invalid JSON falls back to a 6-character hash of the raw body.
+`body_hash`, `body_hash:<keys>`, and `query_hash` retain their original non-canonical behavior so existing replay filenames remain unchanged. Canonicalization is only enabled through `canonical_body_hash` or its matcher object. Invalid JSON falls back to a 6-character hash of the raw body. For selected paths, a missing path is omitted from the canonical subset while an explicit `null` value is retained.
 
 Matcher objects can be composed through the public factory or instantiated directly:
 

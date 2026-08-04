@@ -76,6 +76,19 @@ it('creates a stable semantic filename from operation and canonical variables', 
         ->and($second)->toBe($first);
 });
 
+it('distinguishes missing variables from explicit null in the semantic profile', function () {
+    Http::withBody('{"operationName":"GetProducts"}', 'application/json')
+        ->post('https://shop.myshopify.com/admin/api/2026-07/graphql.json');
+    Http::withBody('{"operationName":"GetProducts","variables":null}', 'application/json')
+        ->post('https://shop.myshopify.com/admin/api/2026-07/graphql.json');
+
+    $missing = $this->namer->fromRequest(Http::recorded()[0][0], ShopifyProfile::Semantic->matchers());
+    $explicitNull = $this->namer->fromRequest(Http::recorded()[1][0], ShopifyProfile::Semantic->matchers());
+
+    expect($missing)->toBe('shopify_graphql_GetProducts_99914b.json')
+        ->and($explicitNull)->toBe('shopify_graphql_GetProducts_37d144.json');
+});
+
 it('makes the strict profile sensitive to documents and variables but not key order', function () {
     $bodies = [
         '{"operationName":"GetProducts","query":"query GetProducts { products { id } }","variables":{"b":2,"a":1}}',

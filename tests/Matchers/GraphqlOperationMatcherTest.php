@@ -51,6 +51,17 @@ it('ignores unmatched quotes inside comments', function () {
     expect($this->matcher->resolve(Http::recorded()[0][0]))->toBe('RealOperation');
 });
 
+it('does not mistake operation keywords used as fragment names for operations', function (string $fragmentName) {
+    $document = <<<GRAPHQL
+        fragment {$fragmentName} on Product { id }
+        query GetProduct { product { ...{$fragmentName} } }
+        GRAPHQL;
+
+    Http::withBody(json_encode(['query' => $document]), 'application/json')->post('https://example.com/graphql');
+
+    expect($this->matcher->resolve(Http::recorded()[0][0]))->toBe('GetProduct');
+})->with(['query', 'mutation', 'subscription']);
+
 it('uses X-EYOND-Request as a fallback', function () {
     Http::withHeaders(['X-EYOND-Request' => 'InventorySync'])
         ->withBody('{"query":"{ inventoryItems { id } }"}', 'application/json')

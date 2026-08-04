@@ -74,15 +74,25 @@ Control how filenames are generated from requests:
 
 Default: `['method', 'url']`. Aliases: `'http_method'`, `'http_attribute:key'`.
 
-Legacy `body_hash`, keyed `body_hash`, and `query_hash` remain non-canonical for filename compatibility. Invalid JSON passed to `canonical_body_hash` falls back to hashing the raw body. Matcher objects are also accepted:
+Legacy `body_hash`, keyed `body_hash`, and `query_hash` remain non-canonical for filename compatibility. Invalid JSON passed to `canonical_body_hash` falls back to hashing the raw body. For selected paths, missing paths are omitted while explicit `null` values are retained. Matcher objects are also accepted:
 
 ```php
 use EYOND\LaravelHttpReplay\Matchers;
+use EYOND\LaravelHttpReplay\Matchers\CanonicalBodyHashMatcher;
+use EYOND\LaravelHttpReplay\Matchers\GraphqlOperationMatcher;
+use EYOND\LaravelHttpReplay\Matchers\LiteralMatcher;
 
 Http::replay()->matchBy(
     Matchers::literal('custom'),
     Matchers::graphqlOperation(),
     Matchers::canonicalBodyHash('variables'),
+);
+
+// The concrete matcher classes are also directly usable public API.
+Http::replay()->matchBy(
+    new LiteralMatcher('custom'),
+    new GraphqlOperationMatcher,
+    new CanonicalBodyHashMatcher(['variables']),
 );
 ```
 

@@ -43,13 +43,20 @@ final class CanonicalBodyHashMatcher implements NameMatcher
         $subset = new stdClass;
 
         foreach ($this->paths as $path) {
-            $subset->{$path} = $this->valueAtPath($data, $path);
+            [$exists, $value] = $this->valueAtPath($data, $path);
+
+            if ($exists) {
+                $subset->{$path} = $value;
+            }
         }
 
         return $subset;
     }
 
-    protected function valueAtPath(mixed $value, string $path): mixed
+    /**
+     * @return array{bool, mixed}
+     */
+    protected function valueAtPath(mixed $value, string $path): array
     {
         foreach (explode('.', $path) as $segment) {
             if (is_object($value) && property_exists($value, $segment)) {
@@ -64,9 +71,9 @@ final class CanonicalBodyHashMatcher implements NameMatcher
                 continue;
             }
 
-            return null;
+            return [false, null];
         }
 
-        return $value;
+        return [true, $value];
     }
 }

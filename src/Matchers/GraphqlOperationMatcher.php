@@ -57,13 +57,51 @@ final class GraphqlOperationMatcher implements NameMatcher
 
     protected function namedOperation(string $document): ?string
     {
-        $document = $this->withoutCommentsAndStrings($document);
+        preg_match_all(
+            '/[_A-Za-z][_0-9A-Za-z]*|[{}()\[\]]/',
+            $this->withoutCommentsAndStrings($document),
+            $matches,
+        );
 
-        if (preg_match('/\b(?:query|mutation|subscription)\s+([_A-Za-z][_0-9A-Za-z]*)\b/', $document, $matches) !== 1) {
-            return null;
+        $tokens = $matches[0];
+        $atDefinitionStart = true;
+        $selectionDepth = 0;
+        $parenthesisDepth = 0;
+        $bracketDepth = 0;
+
+        foreach ($tokens as $index => $token) {
+            if ($selectionDepth === 0 && $atDefinitionStart) {
+                if (in_array($token, ['query', 'mutation', 'subscription'], true)) {
+                    $operationName = $tokens[$index + 1] ?? null;
+
+                    return is_string($operationName) && preg_match('/^[_A-Za-z][_0-9A-Za-z]*$/', $operationName) === 1
+                        ? $operationName
+                        : null;
+                }
+
+                $atDefinitionStart = false;
+            }
+
+            if ($token === '(') {
+                $parenthesisDepth++;
+            } elseif ($token === ')') {
+                $parenthesisDepth = max(0, $parenthesisDepth - 1);
+            } elseif ($token === '[') {
+                $bracketDepth++;
+            } elseif ($token === ']') {
+                $bracketDepth = max(0, $bracketDepth - 1);
+            } elseif ($token === '{' && $parenthesisDepth === 0 && $bracketDepth === 0) {
+                $selectionDepth++;
+            } elseif ($token === '}' && $selectionDepth > 0) {
+                $selectionDepth--;
+
+                if ($selectionDepth === 0) {
+                    $atDefinitionStart = true;
+                }
+            }
         }
 
-        return $matches[1];
+        return null;
     }
 
     protected function looksAnonymous(string $document): bool

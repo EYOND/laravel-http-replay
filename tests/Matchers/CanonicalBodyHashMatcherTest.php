@@ -49,6 +49,16 @@ it('supports several selected paths independent of path order', function () {
         ->toBe((new CanonicalBodyHashMatcher(['extensions.context', 'variables']))->resolve($request));
 });
 
+it('distinguishes a missing selected path from an explicit null value', function () {
+    Http::withBody('{}', 'application/json')->post('https://example.com/graphql');
+    Http::withBody('{"variables":null}', 'application/json')->post('https://example.com/graphql');
+
+    $matcher = new CanonicalBodyHashMatcher(['variables']);
+
+    expect($matcher->resolve(Http::recorded()[0][0]))->toBe('99914b')
+        ->and($matcher->resolve(Http::recorded()[1][0]))->toBe('37d144');
+});
+
 it('falls back to the raw body hash for non-JSON bodies', function () {
     Http::withBody('plain text body', 'text/plain')->post('https://example.com/graphql');
 
