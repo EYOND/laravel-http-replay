@@ -324,6 +324,18 @@ it('uses shared shopify fakes', function () {
 Http::replay()->readFrom('shopify', 'shopify-fallback');
 ```
 
+**Use shared locations as fallbacks for test-local responses:**
+
+```php
+Http::replay()->fallbackTo('project-specific', 'package-defaults');
+```
+
+The current test-specific directory is checked first. Shared fallback locations are
+then checked in their declared order. The first location containing a response owns
+its complete queue, including `__2`, `__3`, and later responses; queues are never
+merged across locations. Missing responses are written to the test-specific directory
+unless `writeTo()` selects a different destination.
+
 **Write to shared, read from test-local:**
 
 ```php
@@ -355,6 +367,7 @@ it('test two', function () {
 | Method | Reads from | Writes to |
 |--------|-----------|-----------|
 | `readFrom('a', 'b')` | shared/a, shared/b (first wins) | test-specific |
+| `fallbackTo('a', 'b')` | test-specific, shared/a, shared/b (first wins per queue) | test-specific |
 | `writeTo('x')` | test-specific | shared/x |
 | `useShared('name')` | shared/name | shared/name |
 | `readFrom('a')->writeTo('x')` | shared/a | shared/x |
@@ -410,8 +423,17 @@ Http::replay()->expireAfter(days: 7);
 Http::replay()->expireAfter(new DateInterval('P1M'));
 
 // Re-record shared fakes
-Http::replay()->readFrom('shopify')->fresh();
+Http::replay()->useShared('shopify')->fresh();
+
+// Delete test-local responses while preserving and revealing shared fallbacks
+Http::replay()->fallbackTo('shopify')->fresh();
 ```
+
+With `fallbackTo()`, `fresh()` only deletes responses from the current test-specific
+directory. Shared fallback locations are never deleted and remain available during
+the same activation. `expireAfter()` evaluates files in every source independently;
+when all responses for a queue are expired in a higher-priority source, Replay uses
+the next fallback containing a non-expired response.
 
 #### Artisan Command
 
@@ -543,7 +565,7 @@ Replay files without `body_encoding`, including files from earlier package versi
 
 ```
 tests/.laravel-http-replay/
-├── _shared/                                    # Shared fakes (via useShared/readFrom/writeTo)
+├── _shared/                                    # Shared fakes (via useShared/readFrom/fallbackTo/writeTo)
 │   └── shopify/
 │       └── GET_shopify_com_api_products.json
 ├── Feature/
@@ -608,6 +630,7 @@ Returns a `ReplayBuilder` instance with the following fluent methods:
 | `only(array $patterns)` | Only record/replay URLs matching these patterns |
 | `alsoFake(array $stubs)` | Additional static fakes for non-replayed URLs |
 | `readFrom(string ...$names)` | Load stored fakes from shared location(s), first wins |
+| `fallbackTo(string ...$names)` | Load test-specific responses first, then shared fallbacks in order |
 | `writeTo(string $name)` | Save recorded fakes to a shared location |
 | `useShared(string $name)` | Read + write from a shared location |
 | `withResponseHeaders(string ...$headers)` | Store all response headers with no arguments, or only the named headers |

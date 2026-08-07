@@ -40,6 +40,7 @@ Http::replay()
     ->only(['shopify.com/*'])                       // Limit which URLs are recorded
     ->alsoFake(['stripe.com/*' => Http::response(['ok' => true])])  // Static fakes
     ->readFrom('shopify')                           // Read from shared dir(s)
+    ->fallbackTo('project', 'defaults')             // Test-local, then shared fallbacks
     ->writeTo('shopify-v2')                         // Write to shared dir
     ->useShared('shopify')                          // Read + write same shared dir
     ->fresh()                                       // Delete and re-record
@@ -187,8 +188,14 @@ Semantic filenames look like `shopify_graphql_GetProducts_744ad5.json`. Strict r
 | Method | Reads from | Writes to |
 |--------|-----------|-----------|
 | `readFrom('a', 'b')` | shared/a, shared/b (first wins) | test-specific |
+| `fallbackTo('a', 'b')` | test-specific, shared/a, shared/b (first wins per queue) | test-specific |
 | `writeTo('x')` | test-specific | shared/x |
 | `useShared('name')` | shared/name | shared/name |
+
+`fallbackTo()` keeps the current test-specific directory as the primary source and
+uses the named shared directories in order. One source owns the complete `__2`,
+`__3`, and later response queue; queues are never merged across sources. `writeTo()`
+can still select a different destination.
 
 Load a single shared fake for `Http::fake()`:
 ```php
@@ -206,7 +213,12 @@ Http::replay()->fresh();                         // Re-record all
 Http::replay()->fresh('shopify.com/*');           // Re-record matching URLs
 Http::replay()->expireAfter(days: 7);            // Auto-expire after 7 days
 Http::replay()->expireAfter(new DateInterval('P1M'));  // Or use DateInterval
+Http::replay()->fallbackTo('defaults')->fresh(); // Delete test-local only; preserve shared
 ```
+
+With `fallbackTo()`, shared fallback directories remain available after `fresh()`.
+Expiry is evaluated per source, so a fully expired higher-priority queue can fall
+through to the next source.
 
 CLI: `vendor/bin/pest --replay-fresh` or `REPLAY_FRESH=true vendor/bin/pest`.
 Artisan: `php artisan replay:prune`.
@@ -256,7 +268,7 @@ return [
 
 ```
 tests/.laravel-http-replay/
-├── _shared/                    # Shared fakes (useShared/readFrom/writeTo)
+├── _shared/                    # Shared fakes (useShared/readFrom/fallbackTo/writeTo)
 │   └── shopify/
 │       └── GET_products.json
 └── Feature/ShopifyTest/

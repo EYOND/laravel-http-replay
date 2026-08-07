@@ -31,6 +31,9 @@ class ReplayBuilder
     /** @var list<string> */
     protected array $readFromNames = [];
 
+    /** @var list<string> */
+    protected array $fallbackToNames = [];
+
     protected ?string $writeToName = null;
 
     protected bool $isFresh = false;
@@ -164,6 +167,15 @@ class ReplayBuilder
     public function readFrom(string ...$names): self
     {
         $this->readFromNames = array_values($names);
+        $this->fallbackToNames = [];
+
+        return $this;
+    }
+
+    public function fallbackTo(string ...$names): self
+    {
+        $this->fallbackToNames = array_values($names);
+        $this->readFromNames = [];
 
         return $this;
     }
@@ -178,6 +190,7 @@ class ReplayBuilder
     public function useShared(string $name): self
     {
         $this->readFromNames = [$name];
+        $this->fallbackToNames = [];
         $this->writeToName = $name;
 
         return $this;
@@ -247,7 +260,15 @@ class ReplayBuilder
 
     protected function resolveDirectories(): void
     {
-        if ($this->readFromNames !== []) {
+        if ($this->fallbackToNames !== []) {
+            $this->loadDirectories = [
+                $this->storage->getTestDirectory(),
+                ...array_map(
+                    fn (string $name) => $this->storage->getSharedDirectory($name),
+                    $this->fallbackToNames,
+                ),
+            ];
+        } elseif ($this->readFromNames !== []) {
             $this->loadDirectories = array_map(
                 fn (string $name) => $this->storage->getSharedDirectory($name),
                 $this->readFromNames,
@@ -269,7 +290,11 @@ class ReplayBuilder
             return;
         }
 
-        foreach ($this->loadDirectories as $dir) {
+        $freshDirectories = $this->fallbackToNames === []
+            ? $this->loadDirectories
+            : [$this->loadDirectories[0]];
+
+        foreach ($freshDirectories as $dir) {
             if ($this->freshPattern !== null) {
                 $this->storage->deleteByPattern($dir, $this->freshPattern);
             } else {
