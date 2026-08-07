@@ -28,10 +28,12 @@ All notable changes to `laravel-http-replay` will be documented in this file.
 - Precision-safe raw-body fallback for canonical hashes containing JSON integers outside PHP's integer range
 - Configurable response-header storage through `response_headers`, `withResponseHeaders()`, and `withoutResponseHeaders()`
 - Lossless Base64 storage and transparent replay for binary and non-UTF-8 response bodies
+- Test-local response priority with ordered shared fallbacks through `fallbackTo()`
 
 ### Compatibility
 
 - Existing default, legacy matcher filenames, replay schemas without `body_encoding`, reserved `replay` attributes, and repeated-request queue behavior remain unchanged
+- Existing `readFrom()`, `writeTo()`, and `useShared()` source-selection behavior remains unchanged
 - All response headers remain the package default; disabling them still stores a stable empty `headers` list
 - The additive API is intended for a future 0.2.x release, accepted by Composer constraints `^0.2` and `^0.2.0`
 
