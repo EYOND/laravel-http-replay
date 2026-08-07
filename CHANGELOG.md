@@ -2,6 +2,14 @@
 
 All notable changes to `laravel-http-replay` will be documented in this file.
 
+## v0.2.3 - 2026-08-07
+
+### What's Changed
+
+* Add test-local replay fallbacks by @pikant in https://github.com/EYOND/laravel-http-replay/pull/9
+
+**Full Changelog**: https://github.com/EYOND/laravel-http-replay/compare/v0.2.2...v0.2.3
+
 ## v0.2.2 - 2026-08-07
 
 ### What's Changed
