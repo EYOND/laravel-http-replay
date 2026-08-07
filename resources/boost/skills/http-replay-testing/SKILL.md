@@ -35,6 +35,7 @@ Subsequent runs: stored response served, no network.
 ```php
 Http::replay()
     ->matchBy('method', 'url', 'body_hash')       // Filename matchers
+    ->withResponseHeaders('Content-Type')          // Store selected response headers
     ->for('graphql.com/*')->matchBy('url', 'attribute:operation')  // Per-URL matchers
     ->only(['shopify.com/*'])                       // Limit which URLs are recorded
     ->alsoFake(['stripe.com/*' => Http::response(['ok' => true])])  // Static fakes
@@ -146,11 +147,26 @@ Configure matchers globally (e.g. in `tests/Pest.php`) without activating replay
 use EYOND\LaravelHttpReplay\Facades\Replay;
 
 Replay::configure()
+    ->withoutResponseHeaders()
     ->for('myshopify.com/*')->matchBy('url', 'attribute:request_name')
     ->for('reybex.com/*')->matchBy('method', 'url');
 ```
 
 `Http::replay()` in each test inherits this config. Per-test overrides take precedence for the same pattern.
+
+## Response headers and binary bodies
+
+Response headers default to all for backward compatibility. Set `response_headers` in `config/http-replay.php` to `true`, `false`, or a case-insensitive allowlist such as `['Content-Type', 'x-goog-hash']`.
+
+```php
+Replay::configure()->withoutResponseHeaders();
+
+Http::replay()->withResponseHeaders('Content-Type', 'Content-Length');
+Http::replay()->withoutResponseHeaders();
+Http::replay()->withResponseHeaders(); // All headers
+```
+
+Disabled headers are stored as `"headers": []`. UTF-8 text, XML, and JSON stay readable. Binary or non-UTF-8 bodies use a Base64 `body` plus `"body_encoding": "base64"` and are decoded transparently. Legacy replay files without the marker remain supported; XML is never parsed or reformatted.
 
 ### Shopify GraphQL profiles
 
@@ -229,6 +245,7 @@ Config file: `config/http-replay.php`
 return [
     'storage_path' => 'tests/.laravel-http-replay',  // Relative to base_path()
     'match_by' => ['method', 'url'],
+    'response_headers' => true,    // true, false, or selected header names
     'expire_after' => null,        // Days, or null
     'fresh' => false,              // env('REPLAY_FRESH', false) in app config
     'bail' => false,               // env('REPLAY_BAIL', false) in app config

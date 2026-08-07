@@ -220,10 +220,32 @@ it('special test', function () {
 | Method | Description |
 |---|---|
 | `matchBy(string\|Closure\|NameMatcher ...$fields)` | Set global default matchers (overrides config file default) |
+| `withResponseHeaders(string ...$headers)` | Store all response headers with no arguments, or only the named headers |
+| `withoutResponseHeaders()` | Store no response headers |
 | `for(string $pattern)->matchBy(...)` | Set per-URL matchers |
 | `shopify(ShopifyProfile $profile = ShopifyProfile::Semantic)` | Register the opt-in Shopify GraphQL recipe |
 
-Per-test overrides in `Http::replay()` always take precedence over `Replay::configure()` for the same pattern.
+Per-test overrides in `Http::replay()` always take precedence over the corresponding `Replay::configure()` setting.
+
+### Response Headers
+
+All response headers are stored by default for backward compatibility. Configure the project-wide behavior in `config/http-replay.php` with `true` for all headers, `false` for none, or an array for a case-insensitive allowlist:
+
+```php
+'response_headers' => ['Content-Type', 'Content-Length', 'x-goog-hash'],
+```
+
+Use the same behavior globally for the test suite or override it for one replay activation:
+
+```php
+Replay::configure()->withoutResponseHeaders();
+
+Http::replay()->withResponseHeaders('Content-Type', 'x-goog-hash');
+Http::replay()->withoutResponseHeaders();
+Http::replay()->withResponseHeaders(); // Store all headers for this activation
+```
+
+When headers are disabled, replay files still contain `"headers": []` to keep the schema stable.
 
 ### Shopify GraphQL Profiles
 
@@ -504,6 +526,19 @@ Each stored response is a JSON file containing the response data and metadata:
 }
 ```
 
+UTF-8 text, XML, and JSON remain readable in replay files. Non-UTF-8 or otherwise binary response bodies are stored losslessly as Base64 with an explicit marker and decoded transparently during replay:
+
+```json
+{
+    "status": 200,
+    "headers": [],
+    "body": "AP+JUE5HDQoaCg==",
+    "body_encoding": "base64"
+}
+```
+
+Replay files without `body_encoding`, including files from earlier package versions, continue to load unchanged. XML is never parsed or reformatted.
+
 ### Directory Structure
 
 ```
@@ -546,6 +581,9 @@ return [
     // Aliases: 'http_method', 'http_attribute:key'
     'match_by' => ['method', 'url'],
 
+    // true = all, false = none, array = only these names (case-insensitive)
+    'response_headers' => true,
+
     // Auto-expire after N days (null = never)
     'expire_after' => null,
 
@@ -572,6 +610,8 @@ Returns a `ReplayBuilder` instance with the following fluent methods:
 | `readFrom(string ...$names)` | Load stored fakes from shared location(s), first wins |
 | `writeTo(string $name)` | Save recorded fakes to a shared location |
 | `useShared(string $name)` | Read + write from a shared location |
+| `withResponseHeaders(string ...$headers)` | Store all response headers with no arguments, or only the named headers |
+| `withoutResponseHeaders()` | Store no response headers |
 | `fresh(?string $pattern)` | Delete stored fakes and re-record (optionally filtered by URL pattern) |
 | `bail()` | Fail if Replay attempts to record a new fake (no stored response found) |
 | `expireAfter(int\|DateInterval $days)` | Auto-expire stored fakes after N days or a DateInterval |
@@ -583,6 +623,8 @@ Returns a `ReplayConfig` instance for global configuration without activating re
 | Method | Description |
 |---|---|
 | `matchBy(string\|Closure\|NameMatcher ...$fields)` | Set global default matchers |
+| `withResponseHeaders(string ...$headers)` | Store all response headers with no arguments, or only the named headers |
+| `withoutResponseHeaders()` | Store no response headers |
 | `for(string $pattern)` | Set per-URL matchers (returns proxy, must chain `matchBy()`) |
 | `shopify(ShopifyProfile $profile = ShopifyProfile::Semantic)` | Register the opt-in Shopify GraphQL recipe |
 

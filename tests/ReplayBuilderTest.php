@@ -141,6 +141,15 @@ it('supports fluent expireAfter configuration', function () {
     expect($result)->toBeInstanceOf(ReplayBuilder::class);
 });
 
+it('supports fluent response header configuration', function () {
+    $builder = new ReplayBuilder($this->storage);
+
+    expect($builder->withResponseHeaders('Content-Type', 'x-goog-hash'))
+        ->toBeInstanceOf(ReplayBuilder::class)
+        ->and($builder->withoutResponseHeaders())
+        ->toBeInstanceOf(ReplayBuilder::class);
+});
+
 it('supports full fluent chain', function () {
     $builder = new ReplayBuilder($this->storage);
 

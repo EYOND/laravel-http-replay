@@ -53,6 +53,64 @@ it('stores global matchBy on config', function () {
     expect($config->getMatchByFields())->toBe(['method', 'url', 'body_hash']);
 });
 
+it('stores global response header configuration', function () {
+    $config = Replay::configure()->withResponseHeaders('Content-Type', 'x-goog-hash');
+
+    expect($config->getResponseHeaders())->toBe(['Content-Type', 'x-goog-hash']);
+
+    $config->withoutResponseHeaders();
+
+    expect($config->getResponseHeaders())->toBeFalse();
+});
+
+it('uses project response header defaults and allows a local override', function () {
+    config()->set('http-replay.response_headers', false);
+
+    $builder = new ReplayBuilder($this->storage);
+    $reflection = new ReflectionClass($builder);
+    $property = $reflection->getProperty('responseHeaders');
+
+    expect($property->getValue($builder))->toBeFalse();
+
+    $builder->withResponseHeaders('Content-Type');
+
+    expect($property->getValue($builder))->toBe(['Content-Type']);
+});
+
+it('inherits selected response headers from project configuration', function () {
+    config()->set('http-replay.response_headers', ['Content-Type', 'x-goog-hash']);
+
+    $builder = new ReplayBuilder($this->storage);
+    $reflection = new ReflectionClass($builder);
+
+    expect($reflection->getProperty('responseHeaders')->getValue($builder))
+        ->toBe(['Content-Type', 'x-goog-hash']);
+});
+
+it('lets global response header configuration override the project default', function () {
+    config()->set('http-replay.response_headers', false);
+    Replay::configure()->withResponseHeaders();
+
+    $builder = new ReplayBuilder($this->storage);
+    $reflection = new ReflectionClass($builder);
+
+    expect($reflection->getProperty('responseHeaders')->getValue($builder))->toBeTrue();
+});
+
+it('lets a local response header override take precedence over global configuration', function () {
+    Replay::configure()->withoutResponseHeaders();
+
+    $builder = new ReplayBuilder($this->storage);
+    $reflection = new ReflectionClass($builder);
+    $property = $reflection->getProperty('responseHeaders');
+
+    expect($property->getValue($builder))->toBeFalse();
+
+    $builder->withResponseHeaders('Content-Length');
+
+    expect($property->getValue($builder))->toBe(['Content-Length']);
+});
+
 it('inherits per-pattern matchBy from config in ReplayBuilder', function () {
     Replay::configure()
         ->for('myshopify.com/*')->matchBy('url', 'attribute:request_name');

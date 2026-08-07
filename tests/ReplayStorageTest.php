@@ -1,7 +1,9 @@
 <?php
 
 use EYOND\LaravelHttpReplay\ReplayStorage;
+use EYOND\LaravelHttpReplay\ResponseSerializer;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
     $this->tempDir = sys_get_temp_dir().'/http-replays-test-'.uniqid();
@@ -40,6 +42,21 @@ it('stores a response file', function () {
     $stored = json_decode(File::get($dir.'/GET_api_example_com_products.json'), true);
     expect($stored['status'])->toBe(200);
     expect($stored['body'])->toBe(['products' => []]);
+});
+
+it('stores an empty response header list in the replay schema', function () {
+    Http::fake(['example.com/*' => Http::response('ok', 200, ['X-Custom' => 'value'])]);
+    Http::get('https://example.com/data');
+
+    [$request, $response] = Http::recorded()[0];
+    $data = (new ResponseSerializer)->serialize($request, $response, false);
+    $dir = $this->tempDir.'/test';
+
+    $this->storage->store($data, $dir, 'response.json');
+
+    $stored = json_decode(File::get($dir.'/response.json'), true);
+
+    expect($stored)->toHaveKey('headers', []);
 });
 
 it('finds stored responses in a directory', function () {

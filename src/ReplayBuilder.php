@@ -41,6 +41,9 @@ class ReplayBuilder
 
     protected ?int $expireDays = null;
 
+    /** @var bool|list<string> */
+    protected bool|array $responseHeaders = true;
+
     protected bool $initialized = false;
 
     /** @var list<string> */
@@ -48,7 +51,7 @@ class ReplayBuilder
 
     protected string $saveDirectory = '';
 
-    /** @var array<string, list<array{status: int, headers: array<string, mixed>, body: mixed}>> */
+    /** @var array<string, list<array{status: int, headers?: array<string, mixed>, body: mixed, body_encoding?: string}>> */
     protected array $responseQueues = [];
 
     /** @var list<string> */
@@ -87,6 +90,7 @@ class ReplayBuilder
 
         $this->matchByFields = $defaults->getDefaultMatchBy();
         $this->expireDays = $defaults->getDefaultExpireAfter();
+        $this->responseHeaders = $defaults->getDefaultResponseHeaders();
     }
 
     protected function applyConfig(): void
@@ -99,6 +103,10 @@ class ReplayBuilder
 
         if ($config->getMatchByFields() !== null) {
             $this->matchByFields = $config->getMatchByFields();
+        }
+
+        if ($config->getResponseHeaders() !== null) {
+            $this->responseHeaders = $config->getResponseHeaders();
         }
 
         $this->perPatternMatchBy = array_merge(
@@ -198,6 +206,20 @@ class ReplayBuilder
         } else {
             $this->expireDays = $days;
         }
+
+        return $this;
+    }
+
+    public function withResponseHeaders(string ...$headers): self
+    {
+        $this->responseHeaders = $headers === [] ? true : $headers;
+
+        return $this;
+    }
+
+    public function withoutResponseHeaders(): self
+    {
+        $this->responseHeaders = false;
 
         return $this;
     }
@@ -360,7 +382,7 @@ class ReplayBuilder
         $filename = $this->namer->makeUnique($filename, $this->usedFilenames);
         $this->usedFilenames[] = $filename;
 
-        $data = $this->serializer->serialize($request, $response);
+        $data = $this->serializer->serialize($request, $response, $this->responseHeaders);
         $this->storage->store($data, $this->saveDirectory, $filename);
 
         // Mark test as incomplete when recording new responses
