@@ -2,6 +2,14 @@
 
 All notable changes to `laravel-http-replay` will be documented in this file.
 
+## v0.2.2 - 2026-08-07
+
+### What's Changed
+
+* Add configurable response headers and binary-safe bodies by @pikant in https://github.com/EYOND/laravel-http-replay/pull/6
+
+**Full Changelog**: https://github.com/EYOND/laravel-http-replay/compare/v0.2.1...v0.2.2
+
 ## v0.2.1 - 2026-08-04
 
 ### What is Changed
