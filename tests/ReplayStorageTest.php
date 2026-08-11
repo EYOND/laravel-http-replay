@@ -44,6 +44,16 @@ it('stores a response file', function () {
     expect($stored['body'])->toBe(['products' => []]);
 });
 
+it('deletes one stored response', function () {
+    $dir = $this->tempDir.'/test';
+    $filename = 'GET_api_example_com_products.json';
+    $this->storage->store(['status' => 200, 'body' => []], $dir, $filename);
+
+    $this->storage->deleteResponse($dir, $filename);
+
+    expect(File::exists($dir.'/'.$filename))->toBeFalse();
+});
+
 it('stores an empty response header list in the replay schema', function () {
     Http::fake(['example.com/*' => Http::response('ok', 200, ['X-Custom' => 'value'])]);
     Http::get('https://example.com/data');

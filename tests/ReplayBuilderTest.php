@@ -428,8 +428,11 @@ it('rejects different recorded responses in reusable mode', function () {
     $handleRequest->invoke($builder, $firstRequest);
     $handleRequest->invoke($builder, $secondRequest);
     $handleResponse->invoke($builder, $firstRequest, $firstResponse);
-    $handleResponse->invoke($builder, $secondRequest, $secondResponse);
-})->throws(ReusableResponseMismatchException::class, 'Use sequential()');
+
+    expect(fn () => $handleResponse->invoke($builder, $secondRequest, $secondResponse))
+        ->toThrow(ReusableResponseMismatchException::class, 'Use sequential()')
+        ->and(File::files($dir))->toBeEmpty();
+});
 
 it('throws ReplayBailException when bail config is active', function () {
     config()->set('http-replay.bail', true);

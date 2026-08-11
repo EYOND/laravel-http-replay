@@ -75,6 +75,11 @@ class ReplayStorage
         File::put($path, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)."\n");
     }
 
+    public function deleteResponse(string $directory, string $filename): void
+    {
+        File::delete($directory.DIRECTORY_SEPARATOR.$filename);
+    }
+
     public function deleteDirectory(string $directory): void
     {
         if (File::isDirectory($directory)) {

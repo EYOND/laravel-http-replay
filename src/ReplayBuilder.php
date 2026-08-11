@@ -530,6 +530,9 @@ class ReplayBuilder
 
         if ($recorded !== null) {
             if (! $this->responsesAreEquivalent($recorded, $data)) {
+                $this->storage->deleteResponse($this->saveDirectory, $baseFilename);
+                unset($this->recordedReusableResponses[$baseFilename]);
+
                 throw ReusableResponseMismatchException::forReplayKey($baseFilename);
             }
 

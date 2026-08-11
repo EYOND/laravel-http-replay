@@ -77,7 +77,7 @@ Http::get('https://akeneo.example.com/products/1');
 // One replay file is stored.
 ```
 
-Reusable mode compares status, stored headers, body, and body encoding while ignoring recording metadata such as `recorded_at`. If recording or existing numbered fixtures contain different responses for the same reusable replay key, Replay fails and instructs you to use `sequential()` or distinct matchers. It never silently replaces a stateful response.
+Reusable mode compares status, stored headers, body, and body encoding while ignoring recording metadata such as `recorded_at`. If recording or existing numbered fixtures contain different responses for the same reusable replay key, Replay fails and instructs you to use `sequential()` or distinct matchers. A partial fixture created by that recording is removed before failure. Replay never silently replaces a stateful response.
 
 Set a mode for the complete replay activation, override it for individual URL patterns, or configure a project default:
 
