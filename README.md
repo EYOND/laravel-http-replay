@@ -43,6 +43,58 @@ tests/.laravel-http-replay/
             └── GET_shopify_com_api_products.json
 ```
 
+## Choose a Replay Mode
+
+Replay mode defines what repeated requests with the same replay key mean. Choose it deliberately whenever a test can send the same request more than once.
+
+### Sequential Mode (Current Default)
+
+Use `sequential()` when repeated requests can return different states. Every call consumes one stored response in order and is recorded as the base filename, `__2`, `__3`, and so on.
+
+```php
+Http::replay()
+    ->for('api.example.com/orders/*')->sequential();
+
+// The same GET can return the state before and after an update.
+Http::get('https://api.example.com/orders/1');
+Http::patch('https://api.example.com/orders/1', ['status' => 'fulfilled']);
+Http::get('https://api.example.com/orders/1');
+```
+
+Sequential mode is appropriate for state transitions, polling, retries with changing responses, and tests that intentionally verify request cardinality. It remains the default for backward compatibility.
+
+### Reusable Mode
+
+Use `reusable()` when the same replay key must always return the same response. One fixture is stored and can satisfy any number of matching requests.
+
+```php
+Http::replay()
+    ->for('akeneo.example.com/products/*')->reusable();
+
+Http::get('https://akeneo.example.com/products/1');
+Http::get('https://akeneo.example.com/products/1');
+Http::get('https://akeneo.example.com/products/1');
+// One replay file is stored.
+```
+
+Reusable mode compares status, stored headers, body, and body encoding while ignoring recording metadata such as `recorded_at`. If recording or existing numbered fixtures contain different responses for the same reusable replay key, Replay fails and instructs you to use `sequential()` or distinct matchers. It never silently replaces a stateful response.
+
+Set a mode for the complete replay activation, override it for individual URL patterns, or configure a project default:
+
+```php
+Http::replay()->reusable();
+
+Http::replay()
+    ->reusable()
+    ->for('api.example.com/orders/*')->sequential();
+
+Replay::configure()
+    ->reusable()
+    ->for('api.example.com/orders/*')->sequential();
+```
+
+Matchers define whether requests share a replay key; modes define how responses for that key are consumed. If requests are semantically different despite using the same endpoint, distinguish them with `matchBy()` or `withAttributes()` instead of relying on response order.
+
 ## Usage
 
 ### Basic Replay
@@ -564,7 +616,7 @@ tests/.laravel-http-replay/
 | Duplicate URL (sequential calls) | `GET_api_example_com_products__2.json` |
 | Shopify semantic profile | `shopify_graphql_GetProducts_744ad5.json` |
 
-Repeated requests with the same matcher filename form a queue. The first response is stored under the base filename, followed by `__2`, `__3`, and so on; replay consumes them in that order. The filename remains the lookup key.
+In sequential mode, repeated requests with the same matcher filename form a queue. The first response is stored under the base filename, followed by `__2`, `__3`, and so on; replay consumes them in that order. In reusable mode, one stable response is stored and served repeatedly. The filename remains the lookup key in both modes.
 
 ## Configuration
 
@@ -580,6 +632,9 @@ return [
     // Short forms: 'method', 'attribute:key'
     // Aliases: 'http_method', 'http_attribute:key'
     'match_by' => ['method', 'url'],
+
+    // 'sequential' (current default) or 'reusable'
+    'mode' => 'sequential',
 
     // true = all, false = none, array = only these names (case-insensitive)
     'response_headers' => true,
@@ -604,7 +659,9 @@ Returns a `ReplayBuilder` instance with the following fluent methods:
 | Method | Description |
 |---|---|
 | `matchBy(string\|Closure\|NameMatcher ...$fields)` | Matchers for filename generation |
-| `for(string $pattern)` | Set URL pattern for per-URL matcher config (returns proxy, must chain `matchBy()`) |
+| `reusable()` | Reuse one stable response for every request with the same replay key |
+| `sequential()` | Store and consume one ordered response per request |
+| `for(string $pattern)` | Configure per-URL matchers or replay mode through `matchBy()`, `reusable()`, or `sequential()` |
 | `only(array $patterns)` | Only record/replay URLs matching these patterns |
 | `alsoFake(array $stubs)` | Additional static fakes for non-replayed URLs |
 | `readFrom(string ...$names)` | Load stored fakes from shared location(s), first wins |
@@ -623,9 +680,11 @@ Returns a `ReplayConfig` instance for global configuration without activating re
 | Method | Description |
 |---|---|
 | `matchBy(string\|Closure\|NameMatcher ...$fields)` | Set global default matchers |
+| `reusable()` | Make reusable mode the default for each `Http::replay()` call |
+| `sequential()` | Make sequential mode the default for each `Http::replay()` call |
 | `withResponseHeaders(string ...$headers)` | Store all response headers with no arguments, or only the named headers |
 | `withoutResponseHeaders()` | Store no response headers |
-| `for(string $pattern)` | Set per-URL matchers (returns proxy, must chain `matchBy()`) |
+| `for(string $pattern)` | Configure per-URL matchers or replay mode |
 | `shopify(ShopifyProfile $profile = ShopifyProfile::Semantic)` | Register the opt-in Shopify GraphQL recipe |
 
 ### `Replay::getShared(string $path)`
