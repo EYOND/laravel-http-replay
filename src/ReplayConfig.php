@@ -13,6 +13,11 @@ class ReplayConfig
     /** @var array<string, list<string|Closure|NameMatcher>> */
     protected array $perPatternMatchBy = [];
 
+    protected ?ReplayMode $mode = null;
+
+    /** @var array<string, ReplayMode> */
+    protected array $perPatternModes = [];
+
     /** @var bool|list<string>|null */
     protected bool|array|null $responseHeaders = null;
 
@@ -47,6 +52,20 @@ class ReplayConfig
         return $this;
     }
 
+    public function reusable(): self
+    {
+        $this->mode = ReplayMode::Reusable;
+
+        return $this;
+    }
+
+    public function sequential(): self
+    {
+        $this->mode = ReplayMode::Sequential;
+
+        return $this;
+    }
+
     /**
      * Set a URL pattern for per-URL matcher configuration.
      */
@@ -63,6 +82,11 @@ class ReplayConfig
         $this->perPatternMatchBy[$pattern] = $fields;
     }
 
+    public function addPerPatternMode(string $pattern, ReplayMode $mode): void
+    {
+        $this->perPatternModes[$pattern] = $mode;
+    }
+
     /**
      * @return list<string|Closure|NameMatcher>|null
      */
@@ -77,6 +101,19 @@ class ReplayConfig
     public function getPerPatternMatchBy(): array
     {
         return $this->perPatternMatchBy;
+    }
+
+    public function getMode(): ?ReplayMode
+    {
+        return $this->mode;
+    }
+
+    /**
+     * @return array<string, ReplayMode>
+     */
+    public function getPerPatternModes(): array
+    {
+        return $this->perPatternModes;
     }
 
     /**

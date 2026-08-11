@@ -1,6 +1,6 @@
 ---
 name: http-replay-testing
-description: Records and replays HTTP responses in Laravel/Pest tests using Http::replay(). Handles test setup with fluent builder API, shared fakes, matchers for filename generation, GraphQL disambiguation, renewal, and CI bail mode. Use when writing or modifying Pest tests that make HTTP calls, setting up Http::replay(), or configuring replay matchers and shared fakes.
+description: Records and replays HTTP responses in Laravel/Pest tests using Http::replay(). Handles sequential versus reusable replay modes, test setup, shared fakes, matchers for filename generation, GraphQL disambiguation, renewal, and CI bail mode. Use when writing or modifying Pest tests that make HTTP calls, setting up Http::replay(), or configuring replay modes, matchers, and shared fakes.
 ---
 
 # Http Replay Testing
@@ -10,6 +10,7 @@ description: Records and replays HTTP responses in Laravel/Pest tests using Http
 Use this skill when:
 - Writing Pest tests that make real HTTP calls and need recording/replaying
 - Setting up `Http::replay()` with matchers, shared fakes, or expiry
+- Choosing sequential or reusable behavior for repeated requests
 - Disambiguating same-URL requests (GraphQL, webhooks)
 - Configuring CI bail mode or renewal strategies
 
@@ -28,12 +29,55 @@ it('fetches products', function () {
 First run: real HTTP call, response saved to `tests/.laravel-http-replay/{TestFile}/{test_name}/`.
 Subsequent runs: stored response served, no network.
 
+## Choose the replay mode first
+
+Replay mode controls repeated requests with the same replay key. Always make this choice deliberately when a test can send the same request more than once. Matchers determine the replay key; the mode determines how responses for that key are consumed.
+
+### Sequential mode (current default)
+
+Use `sequential()` when the same request can return changing state, including reads before and after a mutation, polling, and stateful retries. It records a base file followed by `__2`, `__3`, and consumes one response per call.
+
+```php
+Http::replay()
+    ->for('api.example.com/orders/*')->sequential();
+
+Http::get('https://api.example.com/orders/1');
+Http::patch('https://api.example.com/orders/1', ['status' => 'fulfilled']);
+Http::get('https://api.example.com/orders/1');
+```
+
+Sequential remains the package default for backward compatibility.
+
+### Reusable mode
+
+Use `reusable()` only when every request with the same replay key must receive the same response. It records one fixture and serves it any number of times.
+
+```php
+Http::replay()
+    ->for('akeneo.example.com/products/*')->reusable();
+```
+
+During the initial recording run, every request occurrence still reaches the upstream service so Replay can verify that all responses are equivalent; unlimited reuse starts on subsequent runs. If reusable recording or existing numbered fixtures contain different statuses, stored headers, bodies, or body encodings, Replay throws `ReusableResponseMismatchException`. Recording metadata such as `recorded_at` is ignored and does not trigger a mismatch. A partial fixture created by that recording is removed before failure, including when further concurrent responses arrive. Switch that pattern to `sequential()` or use distinct matchers. Never use reusable mode merely to suppress fixtures for a stateful endpoint.
+
+Modes can be global for one activation, inherited from `Replay::configure()`, or overridden per URL pattern:
+
+```php
+Http::replay()
+    ->reusable()
+    ->for('api.example.com/orders/*')->sequential();
+
+Replay::configure()
+    ->reusable()
+    ->for('api.example.com/orders/*')->sequential();
+```
+
 ## Fluent builder API
 
 `Http::replay()` returns a `ReplayBuilder`. All methods are chainable.
 
 ```php
 Http::replay()
+    ->sequential()                                  // Current default: ordered response queue
     ->matchBy('method', 'url', 'body_hash')       // Filename matchers
     ->withResponseHeaders('Content-Type')          // Store selected response headers
     ->for('graphql.com/*')->matchBy('url', 'attribute:operation')  // Per-URL matchers
@@ -132,12 +176,14 @@ Http::replay()->matchBy(
 
 ## Per-URL configuration
 
-`for()` returns a `ForPatternProxy` that only exposes `matchBy()`:
+`for()` returns a `ForPatternProxy` for a per-URL matcher or replay mode:
 
 ```php
 Http::replay()
     ->for('shopify.com/graphql')->matchBy('url', 'body_hash')
-    ->for('stripe.com/*')->matchBy('method', 'url');
+    ->for('stripe.com/*')->matchBy('method', 'url')
+    ->for('akeneo.com/products/*')->reusable()
+    ->for('api.example.com/orders/*')->sequential();
 ```
 
 ## Global configuration (`Replay::configure()`)
@@ -257,6 +303,7 @@ Config file: `config/http-replay.php`
 return [
     'storage_path' => 'tests/.laravel-http-replay',  // Relative to base_path()
     'match_by' => ['method', 'url'],
+    'mode' => 'sequential',        // 'sequential' or 'reusable'
     'response_headers' => true,    // true, false, or selected header names
     'expire_after' => null,        // Days, or null
     'fresh' => false,              // env('REPLAY_FRESH', false) in app config
@@ -276,14 +323,15 @@ tests/.laravel-http-replay/
         └── GET_api_products.json
 ```
 
-Repeated requests with the same lookup filename use the existing queue convention: base filename, then `__2`, `__3`, and so on. Responses replay in that order.
+Sequential requests with the same lookup filename use the queue convention: base filename, then `__2`, `__3`, and so on. Reusable requests store one stable response and replay it repeatedly.
 
 ## Key classes
 
 - `EYOND\LaravelHttpReplay\ReplayBuilder` — Fluent builder returned by `Http::replay()`
 - `EYOND\LaravelHttpReplay\ReplayConfig` — Config container returned by `Replay::configure()`
 - `EYOND\LaravelHttpReplay\Facades\Replay` — Facade for `configure()`, `getShared()`, and config access
-- `EYOND\LaravelHttpReplay\ForPatternProxy` — Proxy returned by `for()`, only exposes `matchBy()`
+- `EYOND\LaravelHttpReplay\ForPatternProxy` — Proxy returned by `for()` for `matchBy()`, `reusable()`, or `sequential()`
+- `EYOND\LaravelHttpReplay\ReplayMode` — `Sequential` and `Reusable` replay mode enum
 - `EYOND\LaravelHttpReplay\ReplayNamer` — Generates filenames from matchers
 - `EYOND\LaravelHttpReplay\Matchers\NameMatcher` — Interface for custom matchers
 - `EYOND\LaravelHttpReplay\Matchers` — Factory for reusable matcher objects

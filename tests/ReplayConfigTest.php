@@ -3,6 +3,7 @@
 use EYOND\LaravelHttpReplay\Facades\Replay;
 use EYOND\LaravelHttpReplay\ReplayBuilder;
 use EYOND\LaravelHttpReplay\ReplayConfig;
+use EYOND\LaravelHttpReplay\ReplayMode;
 use EYOND\LaravelHttpReplay\ReplayStorage;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
@@ -61,6 +62,74 @@ it('stores global response header configuration', function () {
     $config->withoutResponseHeaders();
 
     expect($config->getResponseHeaders())->toBeFalse();
+});
+
+it('stores global replay mode configuration', function () {
+    $config = Replay::configure()->reusable();
+
+    expect($config->getMode())->toBe(ReplayMode::Reusable)
+        ->and($config->sequential()->getMode())->toBe(ReplayMode::Sequential);
+});
+
+it('stores replay modes per URL pattern', function () {
+    $config = Replay::configure()
+        ->for('akeneo.example.com/products/*')->reusable()
+        ->for('api.example.com/orders/*')->sequential();
+
+    expect($config->getPerPatternModes())->toBe([
+        'akeneo.example.com/products/*' => ReplayMode::Reusable,
+        'api.example.com/orders/*' => ReplayMode::Sequential,
+    ]);
+});
+
+it('uses sequential as the project default replay mode', function () {
+    $builder = new ReplayBuilder($this->storage);
+
+    expect((new ReflectionClass($builder))->getProperty('mode')->getValue($builder))
+        ->toBe(ReplayMode::Sequential);
+});
+
+it('inherits the project replay mode', function () {
+    config()->set('http-replay.mode', 'reusable');
+    $builder = new ReplayBuilder($this->storage);
+
+    expect((new ReflectionClass($builder))->getProperty('mode')->getValue($builder))
+        ->toBe(ReplayMode::Reusable);
+});
+
+it('lets global replay configuration override the project default', function () {
+    config()->set('http-replay.mode', 'reusable');
+    Replay::configure()->sequential();
+    $builder = new ReplayBuilder($this->storage);
+
+    expect((new ReflectionClass($builder))->getProperty('mode')->getValue($builder))
+        ->toBe(ReplayMode::Sequential);
+});
+
+it('lets a local replay mode override global configuration', function () {
+    Replay::configure()->reusable();
+    $builder = new ReplayBuilder($this->storage);
+    $builder->sequential();
+
+    expect((new ReflectionClass($builder))->getProperty('mode')->getValue($builder))
+        ->toBe(ReplayMode::Sequential);
+});
+
+it('inherits replay modes per URL pattern', function () {
+    Replay::configure()->for('akeneo.example.com/products/*')->reusable();
+    $builder = new ReplayBuilder($this->storage);
+
+    expect((new ReflectionClass($builder))->getProperty('perPatternModes')->getValue($builder))
+        ->toBe(['akeneo.example.com/products/*' => ReplayMode::Reusable]);
+});
+
+it('lets a local per-pattern replay mode override global configuration', function () {
+    Replay::configure()->for('api.example.com/orders/*')->reusable();
+    $builder = new ReplayBuilder($this->storage);
+    $builder->for('api.example.com/orders/*')->sequential();
+
+    expect((new ReflectionClass($builder))->getProperty('perPatternModes')->getValue($builder))
+        ->toBe(['api.example.com/orders/*' => ReplayMode::Sequential]);
 });
 
 it('uses project response header defaults and allows a local override', function () {

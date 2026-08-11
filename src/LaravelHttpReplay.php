@@ -4,6 +4,7 @@ namespace EYOND\LaravelHttpReplay;
 
 use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Support\Facades\File;
+use InvalidArgumentException;
 
 class LaravelHttpReplay
 {
@@ -41,6 +42,17 @@ class LaravelHttpReplay
     public function getDefaultExpireAfter(): ?int
     {
         return config('http-replay.expire_after');
+    }
+
+    public function getDefaultMode(): ReplayMode
+    {
+        $configured = config('http-replay.mode', ReplayMode::Sequential->value);
+
+        if (! is_string($configured) || ReplayMode::tryFrom($configured) === null) {
+            throw new InvalidArgumentException('Http Replay mode must be [sequential] or [reusable].');
+        }
+
+        return ReplayMode::from($configured);
     }
 
     /**

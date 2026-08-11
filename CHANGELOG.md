@@ -30,6 +30,8 @@ All notable changes to `laravel-http-replay` will be documented in this file.
 
 ### Added
 
+- Explicit `sequential()` and `reusable()` replay modes globally and per URL pattern
+- Reusable response deduplication with mismatch protection for stateful responses
 - Public reusable matcher objects and the `Matchers` factory, including literals, GraphQL operation names, and canonical JSON body hashes
 - `literal:*`, `graphql_operation`, and `canonical_body_hash[:paths]` string shorthands
 - Opt-in Semantic and Strict Shopify GraphQL profiles through `Replay::configure()->shopify()`

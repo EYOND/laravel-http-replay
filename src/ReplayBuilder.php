@@ -6,6 +6,7 @@ use Closure;
 use DateInterval;
 use DateTimeImmutable;
 use EYOND\LaravelHttpReplay\Exceptions\ReplayBailException;
+use EYOND\LaravelHttpReplay\Exceptions\ReusableResponseMismatchException;
 use EYOND\LaravelHttpReplay\Matchers\CanonicalBodyHashMatcher;
 use EYOND\LaravelHttpReplay\Matchers\NameMatcher;
 use GuzzleHttp\Promise\PromiseInterface;
@@ -44,6 +45,8 @@ class ReplayBuilder
 
     protected ?int $expireDays = null;
 
+    protected ReplayMode $mode = ReplayMode::Sequential;
+
     /** @var bool|list<string> */
     protected bool|array $responseHeaders = true;
 
@@ -65,6 +68,15 @@ class ReplayBuilder
 
     /** @var array<string, list<string|Closure|NameMatcher>> */
     protected array $perPatternMatchBy = [];
+
+    /** @var array<string, ReplayMode> */
+    protected array $perPatternModes = [];
+
+    /** @var array<string, array{status: int, headers?: array<string, mixed>, body: mixed, body_encoding?: string}> */
+    protected array $recordedReusableResponses = [];
+
+    /** @var array<string, true> */
+    protected array $mismatchedReusableResponses = [];
 
     protected ReplayStorage $storage;
 
@@ -94,6 +106,7 @@ class ReplayBuilder
         $this->matchByFields = $defaults->getDefaultMatchBy();
         $this->expireDays = $defaults->getDefaultExpireAfter();
         $this->responseHeaders = $defaults->getDefaultResponseHeaders();
+        $this->mode = $defaults->getDefaultMode();
     }
 
     protected function applyConfig(): void
@@ -112,9 +125,18 @@ class ReplayBuilder
             $this->responseHeaders = $config->getResponseHeaders();
         }
 
+        if ($config->getMode() !== null) {
+            $this->mode = $config->getMode();
+        }
+
         $this->perPatternMatchBy = array_merge(
             $config->getPerPatternMatchBy(),
             $this->perPatternMatchBy,
+        );
+
+        $this->perPatternModes = array_merge(
+            $config->getPerPatternModes(),
+            $this->perPatternModes,
         );
     }
 
@@ -142,6 +164,25 @@ class ReplayBuilder
     public function addPerPatternMatchBy(string $pattern, array $fields): void
     {
         $this->perPatternMatchBy[$pattern] = $fields;
+    }
+
+    public function reusable(): self
+    {
+        $this->mode = ReplayMode::Reusable;
+
+        return $this;
+    }
+
+    public function sequential(): self
+    {
+        $this->mode = ReplayMode::Sequential;
+
+        return $this;
+    }
+
+    public function addPerPatternMode(string $pattern, ReplayMode $mode): void
+    {
+        $this->perPatternModes[$pattern] = $mode;
     }
 
     /**
@@ -364,7 +405,13 @@ class ReplayBuilder
         $matchBy = $this->resolveMatchBy($request);
         $baseFilename = $this->getBaseFilename($this->namer->fromRequest($request, $matchBy));
 
-        if (isset($this->responseQueues[$baseFilename]) && count($this->responseQueues[$baseFilename]) > 0) {
+        if ($this->resolveMode($request) === ReplayMode::Reusable) {
+            $data = $this->resolveReusableResponse($baseFilename);
+
+            if ($data !== null) {
+                return $this->serializer->deserialize($data);
+            }
+        } elseif (isset($this->responseQueues[$baseFilename]) && count($this->responseQueues[$baseFilename]) > 0) {
             $data = array_shift($this->responseQueues[$baseFilename]);
 
             return $this->serializer->deserialize($data);
@@ -404,18 +451,19 @@ class ReplayBuilder
 
         $matchBy = $this->resolveMatchBy($request);
         $filename = $this->namer->fromRequest($request, $matchBy);
+        $data = $this->serializer->serialize($request, $response, $this->responseHeaders);
+
+        if ($this->resolveMode($request) === ReplayMode::Reusable) {
+            $this->storeReusableResponse($filename, $data);
+
+            return;
+        }
+
         $filename = $this->namer->makeUnique($filename, $this->usedFilenames);
         $this->usedFilenames[] = $filename;
 
-        $data = $this->serializer->serialize($request, $response, $this->responseHeaders);
         $this->storage->store($data, $this->saveDirectory, $filename);
-
-        // Mark test as incomplete when recording new responses
-        if (class_exists(TestSuite::class)) {
-            TestSuite::getInstance()->registerSnapshotChange(
-                "Http replay recorded at [{$this->saveDirectory}/{$filename}]"
-            );
-        }
+        $this->registerSnapshotChange($filename);
     }
 
     protected function shouldReplay(Request $request): bool
@@ -465,6 +513,102 @@ class ReplayBuilder
         }
 
         return $this->matchByFields;
+    }
+
+    protected function resolveMode(Request $request): ReplayMode
+    {
+        foreach ($this->perPatternModes as $pattern => $mode) {
+            if (Str::is(Str::start($pattern, '*'), $request->url())) {
+                return $mode;
+            }
+        }
+
+        return $this->mode;
+    }
+
+    /**
+     * @return array{status: int, headers?: array<string, mixed>, body: mixed, body_encoding?: string}|null
+     */
+    protected function resolveReusableResponse(string $baseFilename): ?array
+    {
+        $responses = $this->responseQueues[$baseFilename] ?? [];
+
+        if ($responses === []) {
+            return null;
+        }
+
+        $response = $responses[0];
+
+        foreach ($responses as $candidate) {
+            if (! $this->responsesAreEquivalent($response, $candidate)) {
+                throw ReusableResponseMismatchException::forReplayKey($baseFilename);
+            }
+        }
+
+        return $response;
+    }
+
+    /**
+     * @param  array{status: int, headers?: array<string, mixed>, body: mixed, body_encoding?: string}  $data
+     */
+    protected function storeReusableResponse(string $filename, array $data): void
+    {
+        $baseFilename = $this->getBaseFilename($filename);
+
+        if (isset($this->mismatchedReusableResponses[$baseFilename])) {
+            return;
+        }
+
+        $recorded = $this->recordedReusableResponses[$baseFilename] ?? null;
+
+        if ($recorded !== null) {
+            if (! $this->responsesAreEquivalent($recorded, $data)) {
+                $this->mismatchedReusableResponses[$baseFilename] = true;
+                $this->storage->deleteResponse($this->saveDirectory, $baseFilename);
+                unset($this->recordedReusableResponses[$baseFilename]);
+
+                throw ReusableResponseMismatchException::forReplayKey($baseFilename);
+            }
+
+            return;
+        }
+
+        $this->recordedReusableResponses[$baseFilename] = $data;
+        $this->usedFilenames[] = $baseFilename;
+        $this->storage->store($data, $this->saveDirectory, $baseFilename);
+        $this->registerSnapshotChange($baseFilename);
+    }
+
+    /**
+     * @param  array{status: int, headers?: array<string, mixed>, body: mixed, body_encoding?: string}  $first
+     * @param  array{status: int, headers?: array<string, mixed>, body: mixed, body_encoding?: string}  $second
+     */
+    protected function responsesAreEquivalent(array $first, array $second): bool
+    {
+        return $this->comparableResponse($first) === $this->comparableResponse($second);
+    }
+
+    /**
+     * @param  array{status: int, headers?: array<string, mixed>, body: mixed, body_encoding?: string}  $data
+     * @return array{status: int, headers: array<string, mixed>, body: mixed, body_encoding: mixed}
+     */
+    protected function comparableResponse(array $data): array
+    {
+        return [
+            'status' => $data['status'],
+            'headers' => $data['headers'] ?? [],
+            'body' => $data['body'],
+            'body_encoding' => $data['body_encoding'] ?? null,
+        ];
+    }
+
+    protected function registerSnapshotChange(string $filename): void
+    {
+        if (class_exists(TestSuite::class)) {
+            TestSuite::getInstance()->registerSnapshotChange(
+                "Http replay recorded at [{$this->saveDirectory}/{$filename}]"
+            );
+        }
     }
 
     protected function recordingKey(Request $request): string

@@ -21,4 +21,18 @@ class ForPatternProxy
 
         return $this->parent;
     }
+
+    public function reusable(): ReplayBuilder|ReplayConfig
+    {
+        $this->parent->addPerPatternMode($this->pattern, ReplayMode::Reusable);
+
+        return $this->parent;
+    }
+
+    public function sequential(): ReplayBuilder|ReplayConfig
+    {
+        $this->parent->addPerPatternMode($this->pattern, ReplayMode::Sequential);
+
+        return $this->parent;
+    }
 }

@@ -32,6 +32,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Replay Mode
+    |--------------------------------------------------------------------------
+    |
+    | Sequential mode stores and consumes one response per request. Reusable
+    | mode stores one stable response per replay key and serves it repeatedly.
+    |
+    */
+    'mode' => 'sequential',
+
+    /*
+    |--------------------------------------------------------------------------
     | Response Headers
     |--------------------------------------------------------------------------
     |
