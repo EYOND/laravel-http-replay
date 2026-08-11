@@ -2,6 +2,14 @@
 
 All notable changes to `laravel-http-replay` will be documented in this file.
 
+## v0.2.4 - 2026-08-11
+
+### What's Changed
+
+* Add reusable and sequential replay modes by @pikant in https://github.com/EYOND/laravel-http-replay/pull/10
+
+**Full Changelog**: https://github.com/EYOND/laravel-http-replay/compare/v0.2.3...v0.2.4
+
 ## v0.2.3 - 2026-08-07
 
 ### What's Changed
