@@ -72,6 +72,9 @@ class ReplayBuilder
     /** @var array<string, array{status: int, headers?: array<string, mixed>, body: mixed, body_encoding?: string}> */
     protected array $recordedReusableResponses = [];
 
+    /** @var array<string, true> */
+    protected array $mismatchedReusableResponses = [];
+
     protected ReplayStorage $storage;
 
     protected ReplayNamer $namer;
@@ -526,10 +529,16 @@ class ReplayBuilder
     protected function storeReusableResponse(string $filename, array $data): void
     {
         $baseFilename = $this->getBaseFilename($filename);
+
+        if (isset($this->mismatchedReusableResponses[$baseFilename])) {
+            return;
+        }
+
         $recorded = $this->recordedReusableResponses[$baseFilename] ?? null;
 
         if ($recorded !== null) {
             if (! $this->responsesAreEquivalent($recorded, $data)) {
+                $this->mismatchedReusableResponses[$baseFilename] = true;
                 $this->storage->deleteResponse($this->saveDirectory, $baseFilename);
                 unset($this->recordedReusableResponses[$baseFilename]);
 

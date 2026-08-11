@@ -434,6 +434,76 @@ it('rejects different recorded responses in reusable mode', function () {
         ->and(File::files($dir))->toBeEmpty();
 });
 
+it('does not recreate a reusable fixture after a concurrent response mismatch', function () {
+    Http::fakeSequence()
+        ->push(['status' => 'pending'], 200)
+        ->push(['status' => 'fulfilled'], 200)
+        ->push(['status' => 'cancelled'], 200);
+
+    Http::get('https://api.example.com/orders/1');
+    Http::get('https://api.example.com/orders/1');
+    Http::get('https://api.example.com/orders/1');
+    [[$firstRequest, $firstResponse], [$secondRequest, $secondResponse], [$thirdRequest, $thirdResponse]] = Http::recorded();
+
+    $dir = $this->tempDir.'/test';
+    $builder = new class($this->storage) extends ReplayBuilder
+    {
+        protected function registerSnapshotChange(string $filename): void {}
+    };
+    $builder->reusable();
+
+    $reflection = new ReflectionClass($builder);
+    $reflection->getProperty('initialized')->setValue($builder, true);
+    $reflection->getProperty('loadDirectories')->setValue($builder, [$dir]);
+    $reflection->getProperty('saveDirectory')->setValue($builder, $dir);
+
+    $handleRequest = $reflection->getMethod('handleRequest');
+    $handleResponse = $reflection->getMethod('handleResponseReceived');
+    $handleRequest->invoke($builder, $firstRequest);
+    $handleRequest->invoke($builder, $secondRequest);
+    $handleRequest->invoke($builder, $thirdRequest);
+    $handleResponse->invoke($builder, $firstRequest, $firstResponse);
+
+    expect(fn () => $handleResponse->invoke($builder, $secondRequest, $secondResponse))
+        ->toThrow(ReusableResponseMismatchException::class, 'Use sequential()');
+
+    $handleResponse->invoke($builder, $thirdRequest, $thirdResponse);
+
+    expect(File::files($dir))->toBeEmpty();
+});
+
+it('records each request occurrence before reusable replay begins', function () {
+    Http::fakeSequence()
+        ->push(['status' => 'pending'], 200)
+        ->push(['status' => 'fulfilled'], 200);
+
+    Http::get('https://api.example.com/orders/1');
+    Http::get('https://api.example.com/orders/1');
+    [[$firstRequest, $firstResponse], [$secondRequest, $secondResponse]] = Http::recorded();
+
+    $dir = $this->tempDir.'/test';
+    $builder = new class($this->storage) extends ReplayBuilder
+    {
+        protected function registerSnapshotChange(string $filename): void {}
+    };
+    $builder->reusable();
+
+    $reflection = new ReflectionClass($builder);
+    $reflection->getProperty('initialized')->setValue($builder, true);
+    $reflection->getProperty('loadDirectories')->setValue($builder, [$dir]);
+    $reflection->getProperty('saveDirectory')->setValue($builder, $dir);
+
+    $handleRequest = $reflection->getMethod('handleRequest');
+    $handleResponse = $reflection->getMethod('handleResponseReceived');
+    $handleRequest->invoke($builder, $firstRequest);
+    $handleResponse->invoke($builder, $firstRequest, $firstResponse);
+
+    expect($handleRequest->invoke($builder, $secondRequest))->toBeNull()
+        ->and(fn () => $handleResponse->invoke($builder, $secondRequest, $secondResponse))
+        ->toThrow(ReusableResponseMismatchException::class, 'Use sequential()')
+        ->and(File::files($dir))->toBeEmpty();
+});
+
 it('throws ReplayBailException when bail config is active', function () {
     config()->set('http-replay.bail', true);
 

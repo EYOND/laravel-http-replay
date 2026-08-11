@@ -57,7 +57,7 @@ Http::replay()
     ->for('akeneo.example.com/products/*')->reusable();
 ```
 
-If reusable recording or existing numbered fixtures contain different statuses, stored headers, bodies, or body encodings, Replay throws `ReusableResponseMismatchException`. Recording metadata such as `recorded_at` is ignored and does not trigger a mismatch. A partial fixture created by that recording is removed before failure. Switch that pattern to `sequential()` or use distinct matchers. Never use reusable mode merely to suppress fixtures for a stateful endpoint.
+During the initial recording run, every request occurrence still reaches the upstream service so Replay can verify that all responses are equivalent; unlimited reuse starts on subsequent runs. If reusable recording or existing numbered fixtures contain different statuses, stored headers, bodies, or body encodings, Replay throws `ReusableResponseMismatchException`. Recording metadata such as `recorded_at` is ignored and does not trigger a mismatch. A partial fixture created by that recording is removed before failure, including when further concurrent responses arrive. Switch that pattern to `sequential()` or use distinct matchers. Never use reusable mode merely to suppress fixtures for a stateful endpoint.
 
 Modes can be global for one activation, inherited from `Replay::configure()`, or overridden per URL pattern:
 
