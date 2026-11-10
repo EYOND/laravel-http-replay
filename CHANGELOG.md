@@ -48,6 +48,10 @@ All notable changes to `laravel-http-replay` will be documented in this file.
 - Lossless Base64 storage and transparent replay for binary and non-UTF-8 response bodies
 - Test-local response priority with ordered shared fallbacks through `fallbackTo()`
 
+### Fixed
+
+- A response recorded after an exhausted sequential queue is stored under the next free number instead of overwriting the base file ([#7](https://github.com/EYOND/laravel-http-replay/issues/7))
+
 ### Compatibility
 
 - Existing default, legacy matcher filenames, replay schemas without `body_encoding`, reserved `replay` attributes, and repeated-request queue behavior remain unchanged
