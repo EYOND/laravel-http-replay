@@ -63,6 +63,8 @@ Http::get('https://api.example.com/orders/1');
 
 Sequential mode is appropriate for state transitions, polling, retries with changing responses, and tests that intentionally verify request cardinality. It remains the default for backward compatibility.
 
+If a test sends more requests than its queue holds, Replay records each additional response under the next free number, for example `__3` after a stored base file and `__2`. Replay never overwrites a response that it loaded from the directory it writes to. In [bail mode](#bail-on-ci), the test fails instead.
+
 ### Reusable Mode
 
 Use `reusable()` when the same replay key must always return the same response. One fixture is stored and can satisfy any number of matching requests.
