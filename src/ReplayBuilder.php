@@ -383,6 +383,15 @@ class ReplayBuilder
                 }
 
                 $this->responseQueues[$baseFilename][] = $data;
+
+                // A recording must not overwrite a response that was loaded from the
+                // save directory, so its filename counts as used when the next free
+                // suffix is picked. Files that were not loaded stay replaceable:
+                // expired responses, and responses in a save directory that Replay
+                // does not read.
+                if ($dir === $this->saveDirectory) {
+                    $this->usedFilenames[] = $filename;
+                }
             }
         }
     }
