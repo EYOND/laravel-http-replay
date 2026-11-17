@@ -16,7 +16,7 @@ composer require eyond/laravel-http-replay --dev
 Optionally publish the config file:
 
 ```bash
-php artisan vendor:publish --tag="laravel-http-replay-config"
+php artisan vendor:publish --tag="http-replay-config"
 ```
 
 ## Quick Start
