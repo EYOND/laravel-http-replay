@@ -35,7 +35,7 @@ Replay mode controls repeated requests with the same replay key. Always make thi
 
 ### Sequential mode (current default)
 
-Use `sequential()` when the same request can return changing state, including reads before and after a mutation, polling, and stateful retries. It records a base file followed by `__2`, `__3`, and consumes one response per call.
+Use `sequential()` when the same request can return changing state, including reads before and after a mutation, polling, and stateful retries. It records a base file followed by `__2`, `__3`, and consumes one response per call. If a test sends more requests than its queue holds, Replay records each additional response under the next free number and never overwrites a response that it loaded from the directory it writes to. With bail active, the test fails instead.
 
 ```php
 Http::replay()
