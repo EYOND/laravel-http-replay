@@ -59,6 +59,7 @@ All notable changes to `laravel-http-replay` will be documented in this file.
 ### Fixed
 
 - A response recorded after an exhausted sequential queue is stored under the next free number instead of overwriting the base file ([#7](https://github.com/EYOND/laravel-http-replay/issues/7))
+- A sequential queue with ten or more stored responses is replayed in recording order, `__2` before `__10` ([#12](https://github.com/EYOND/laravel-http-replay/issues/12))
 
 ### Compatibility
 
