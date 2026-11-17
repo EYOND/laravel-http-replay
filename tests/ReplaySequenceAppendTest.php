@@ -439,3 +439,51 @@ it('removes only its own recording when a reusable key records differing respons
     expect(fn () => ($this->send)())->toThrow(ReusableResponseMismatchException::class, 'Use sequential()')
         ->and(($this->contents)($directory))->toBe($before);
 });
+
+it('replays a sequence of ten or more responses in recording order', function () {
+    $directory = $this->storage->getTestDirectory();
+    ($this->storeReplay)($directory, 'operation.json', 'stored-1');
+
+    foreach (range(2, 11) as $number) {
+        ($this->storeReplay)($directory, "operation__{$number}.json", "stored-{$number}");
+    }
+
+    $before = ($this->contents)($directory);
+
+    ($this->activateReplay)();
+
+    $served = [];
+
+    foreach (range(1, 11) as $ignored) {
+        $served[] = ($this->send)();
+    }
+
+    expect($served)->toBe(array_map(fn (int $number): string => "stored-{$number}", range(1, 11)))
+        ->and(($this->contents)($directory))->toBe($before);
+});
+
+it('appends after an exhausted sequence of ten or more responses', function () {
+    $directory = $this->storage->getTestDirectory();
+    ($this->storeReplay)($directory, 'operation.json', 'stored-1');
+
+    foreach (range(2, 10) as $number) {
+        ($this->storeReplay)($directory, "operation__{$number}.json", "stored-{$number}");
+    }
+
+    $before = ($this->contents)($directory);
+
+    ($this->activateReplay)();
+
+    $served = [];
+
+    foreach (range(1, 11) as $ignored) {
+        $served[] = ($this->send)();
+    }
+
+    $after = ($this->contents)($directory);
+
+    expect($served)->toBe([...array_map(fn (int $number): string => "stored-{$number}", range(1, 10)), 'run1-request11'])
+        ->and(array_diff_key($after, $before))->toHaveKeys(['operation__11.json'])
+        ->and(array_diff_key($after, $before))->toHaveCount(1)
+        ->and(array_intersect_key($after, $before))->toBe($before);
+});
