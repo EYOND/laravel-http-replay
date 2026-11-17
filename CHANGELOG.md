@@ -2,6 +2,14 @@
 
 All notable changes to `laravel-http-replay` will be documented in this file.
 
+## v0.2.5 - 2026-11-17
+
+### What's Changed
+
+* Append after an exhausted sequence instead of overwriting the base file by @pikant in https://github.com/EYOND/laravel-http-replay/pull/11
+
+**Full Changelog**: https://github.com/EYOND/laravel-http-replay/compare/v0.2.4...v0.2.5
+
 ## v0.2.4 - 2026-08-11
 
 ### What's Changed
