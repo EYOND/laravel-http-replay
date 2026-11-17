@@ -153,3 +153,49 @@ it('ignores non-JSON files when finding responses', function () {
     expect($responses)->toHaveCount(1);
     expect($responses)->toHaveKey('response.json');
 });
+
+it('returns a sequence of ten or more responses in recording order', function () {
+    $dir = $this->tempDir.'/test';
+
+    // Stored out of order on purpose, so the result cannot rely on creation order.
+    foreach ([11, 2, 10, 1, 9, 3, 8, 4, 7, 5, 6] as $number) {
+        $filename = $number === 1 ? 'operation.json' : "operation__{$number}.json";
+        $this->storage->store(['status' => 200, 'body' => $number], $dir, $filename);
+    }
+
+    $responses = $this->storage->findStoredResponses($dir);
+
+    expect(array_keys($responses))->toBe([
+        'operation.json',
+        'operation__2.json',
+        'operation__3.json',
+        'operation__4.json',
+        'operation__5.json',
+        'operation__6.json',
+        'operation__7.json',
+        'operation__8.json',
+        'operation__9.json',
+        'operation__10.json',
+        'operation__11.json',
+    ])->and(array_values(array_column($responses, 'body')))->toBe(range(1, 11));
+});
+
+it('keeps the sequences of different replay keys apart when ordering', function () {
+    $dir = $this->tempDir.'/test';
+
+    foreach (['a.json', 'a__2.json', 'a__10.json', 'a_b.json', 'a_b__2.json', 'b.json'] as $filename) {
+        $this->storage->store(['status' => 200, 'body' => $filename], $dir, $filename);
+    }
+
+    $filenames = array_keys($this->storage->findStoredResponses($dir));
+
+    $sequence = fn (string $base): array => array_values(array_filter(
+        $filenames,
+        fn (string $filename): bool => preg_replace('/__\d+\.json$/', '.json', $filename) === $base,
+    ));
+
+    expect($filenames)->toHaveCount(6)
+        ->and($sequence('a.json'))->toBe(['a.json', 'a__2.json', 'a__10.json'])
+        ->and($sequence('a_b.json'))->toBe(['a_b.json', 'a_b__2.json'])
+        ->and($sequence('b.json'))->toBe(['b.json']);
+});

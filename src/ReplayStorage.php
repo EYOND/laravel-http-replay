@@ -37,6 +37,9 @@ class ReplayStorage
     }
 
     /**
+     * Returns the stored responses of a directory keyed by filename. The responses
+     * of one sequence come in recording order: base file, `__2`, `__3`, ..., `__10`.
+     *
      * @return array<string, array{status: int, headers?: array<string, mixed>, body: mixed, body_encoding?: string, recorded_at?: string, request?: array<string, mixed>}>
      */
     public function findStoredResponses(string $directory): array
@@ -60,7 +63,30 @@ class ReplayStorage
             }
         }
 
+        // File::files() sorts by name as plain strings, which puts `__10` before `__2`.
+        uksort($responses, function (string $a, string $b): int {
+            [$baseA, $numberA] = $this->splitSequenceFilename($a);
+            [$baseB, $numberB] = $this->splitSequenceFilename($b);
+
+            return strcmp($baseA, $baseB) ?: $numberA <=> $numberB;
+        });
+
         return $responses;
+    }
+
+    /**
+     * Splits a filename into the base filename of its sequence and its position in
+     * that sequence. The base file is position 1, `name__2.json` is position 2.
+     *
+     * @return array{string, int}
+     */
+    protected function splitSequenceFilename(string $filename): array
+    {
+        if (preg_match('/^(.*)__(\d+)\.json$/', $filename, $matches) === 1) {
+            return [$matches[1].'.json', (int) $matches[2]];
+        }
+
+        return [$filename, 1];
     }
 
     /**
